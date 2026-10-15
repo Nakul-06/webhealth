@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Deploy archives & temporary scripts
+deploy.zip
+deploy-to-azure.js
+staging/
+bundle/
+azure-deploy/
+
+# Environment variables & secrets
+.env
+*.PublishSettings
+*.json.key
+*.log

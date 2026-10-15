@@ -1,0 +1,35 @@
+{
+  "name": "gcp-webhealth-backend",
+  "version": "1.0.0",
+  "description": "Cloud-Based Dead Link Detection and Website Health Monitoring System - Google Cloud Platform Backend",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [
+    "gcp",
+    "cloud-run",
+    "pubsub",
+    "firestore",
+    "dead-link-detection",
+    "health-monitoring"
+  ],
+  "author": "Naghulan Sivamani R V & Shreyaa S V",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.0",
+    "@google-cloud/logging": "^11.2.0",
+    "@google-cloud/pubsub": "^4.10.0",
+    "axios": "^1.8.2",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

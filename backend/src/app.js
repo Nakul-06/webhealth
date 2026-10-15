@@ -1,0 +1,74 @@
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import scanRoutes from './routes/scanRoutes.js';
+import workerRoutes from './routes/workerRoutes.js';
+import logger from './services/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+
+// Standard middlewares
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Cloud Request Logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (req.path.startsWith('/api') || req.path === '/health') {
+      logger.info('CLOUD_RUN', `${req.method} ${req.originalUrl} [${res.statusCode}] - ${duration}ms`, {
+        method: req.method,
+        url: req.originalUrl,
+        statusCode: res.statusCode,
+        durationMs: duration,
+        ip: req.ip
+      });
+    }
+  });
+  next();
+});
+
+// Container Liveness / Readiness Probe for Google Cloud Run
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'HEALTHY',
+    service: 'dead-link-detector',
+    cloudPlatform: 'Google Cloud Platform (GCP)',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API Routes
+app.use('/api', scanRoutes);
+app.use('/api', workerRoutes);
+
+// Serve Frontend Static files if built (for unified Cloud Run deployment)
+const clientBuildPath = path.resolve(__dirname, '../../frontend/dist');
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(clientBuildPath, 'index.html'));
+    }
+  });
+}
+
+// 404 handler for API
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  logger.error('CLOUD_RUN', `Unhandled Express Error: ${err.message}`, { stack: err.stack });
+  res.status(500).json({ error: 'Internal Server Error', message: err.message });
+});
+
+export default app;

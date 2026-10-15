@@ -1,0 +1,24 @@
+{
+  "name": "cloud-webhealth-system",
+  "version": "1.0.0",
+  "description": "Cloud-Based Dead Link Detection and Website Health Monitoring System - Microsoft Azure",
+  "main": "backend/src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "build": "npm run build --prefix frontend"
+  },
+  "dependencies": {
+    "axios": "^1.8.2",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "uuid": "^11.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "Naghulan Sivamani R V & Shreyaa S V",
+  "license": "ISC"
+}
