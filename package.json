@@ -2,11 +2,10 @@
   "name": "cloud-webhealth-system",
   "version": "1.0.0",
   "description": "Cloud-Based Dead Link Detection and Website Health Monitoring System - Microsoft Azure",
-  "main": "backend/src/server.js",
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node backend/src/server.js",
-    "build": "npm run build --prefix frontend"
+    "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.8.2",
