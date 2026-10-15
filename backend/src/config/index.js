@@ -38,7 +38,7 @@ export const config = {
     defaultMaxLinks: parseInt(process.env.MAX_LINKS || '50', 10),
     defaultMaxDepth: parseInt(process.env.MAX_DEPTH || '2', 10),
     requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS || '10000', 10),
-    userAgent: 'AzureWebHealthBot/1.0 (+https://azure.microsoft.com)'
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 WebHealth/2.0'
   }
 };
 

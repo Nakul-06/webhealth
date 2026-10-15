@@ -1,157 +1,149 @@
-# Cloud-Based Dead Link Detection and Website Health Monitoring System
-### Google Cloud Platform (GCP) Implementation
-**Course**: Cloud Computing — Review 1  
-**Team Members (GCP Part)**: Naghulan Sivamani R V (23z238) & Shreyaa S V (23z264)  
-**Team Members (AWS Part)**: Bommuraj E (23z215), Divakaran A (23z219), Sindhu Kalyani M (23z265)
+# WebHealth 🌐
+### Cloud-Based Distributed Dead Link Detection & Website Health Monitoring System
+
+[![Build and Deploy to Azure](https://github.com/Nakul-06/webhealth/actions/workflows/main_webhealth.yml/badge.svg)](https://github.com/Nakul-06/webhealth/actions/workflows/main_webhealth.yml)
+[![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38bdf8.svg)](https://tailwindcss.com/)
+[![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg)](https://opensource.org/licenses/ISC)
+
+WebHealth is a high-throughput, cloud-native website crawler and availability monitoring system. It recursively analyzes websites, discovers all internal and external hyperlinks, verifies endpoint health in parallel, and delivers an interactive diagnostic health report with latency profiling and actionable SEO remediation.
 
 ---
 
-## 🎯 Project Overview
-Websites frequently suffer from link rot: pages are removed, URLs change, or external APIs fail, resulting in dead links (404 Not Found), broken user experiences, and SEO penalties.
+## 🚀 Key Features
 
-This project implements a fully automated, cloud-native system on **Google Cloud Platform (GCP)** to:
-1. Crawl websites and discover all internal and external hyperlinks.
-2. Distribute link-checking tasks asynchronously at cloud scale.
-3. Concurrently verify HTTP availability and measure response latency.
-4. Detect working links, redirects, dead links, and server errors.
-5. Generate an interactive, visual **Website Health Report** with health scoring and automated remediation advice.
+- **Distributed Microservice Pipeline**: Decouples crawling discovery from link verification via an asynchronous message queue.
+- **High-Accuracy Link Prober**:
+  - Issues lightweight HTTP `HEAD` probes first to minimize network overhead.
+  - Automatically falls back to streaming HTTP `GET` with desktop browser headers when servers reject `HEAD` (handling 405 Method Not Allowed, Cloudflare bot challenges, and CDNs).
+  - Handles SSL certificate verification, DNS resolution, and connection timeouts gracefully.
+- **Smart URL Normalization**: Automatically strips URL hash anchors (`#section`), resolves relative paths, normalizes trailing slashes, and deduplicates identical endpoints.
+- **Comprehensive Status Classification**:
+  - `WORKING` (HTTP 200–299)
+  - `REDIRECTED` (HTTP 301 Permanent, 302 Temporary, with target URL tracking)
+  - `BROKEN` (Dead links: 404 Not Found, 410 Gone, 403 Forbidden)
+  - `SERVER_ERROR` (HTTP 500–599)
+  - `TIMEOUT` (Network latency exceeded threshold)
+- **Interactive Health Dashboard**:
+  - Circular SVG Health Score gauge.
+  - Latency metrics: Average response time, P50 median, P95 percentile latency.
+  - Searchable, filterable links audit table with direct target navigation.
+  - 1-click report export in CSV and JSON formats.
+  - Live audit log telemetry drawer streaming background worker actions.
+- **Dual-Mode Cloud Architecture**:
+  - **Cloud Mode**: Seamlessly connects to **Azure App Service**, **Azure Service Bus**, and **Azure Cosmos DB** when configured.
+  - **Sandbox / Local Mode**: Embedded in-memory NoSQL document store and parallel worker queue for instantaneous zero-config local development and testing.
 
 ---
 
-## ☁️ Google Cloud Architecture (Slide 6 & 7)
+## 🏗️ Architecture
 
 ```
-[ User ]
-   │
-   ▼
-[ Web Frontend ] (React + Tailwind CSS Dashboard)
-   │
-   ▼
-[ Cloud Run (API & Crawler) ] ──Logs & Telemetry──► [ Cloud Logging ]
-   │ (Publishes tasks)
-   ▼
-[ Cloud Pub/Sub ] (Topic: dead-link-tasks)
-   │ (Push Subscription)
-   ▼
-[ Cloud Run Workers ] (Parallel HTTP Verification & Latency)
-   │ (Writes results)
-   ▼
-[ Cloud Firestore ] (NoSQL Database: Scans & Links Subcollections)
-   │
-   ▼
-[ Website Health Report ] (Radial Gauge, Latency Profile, CSV/JSON Export)
+[ Web Browser ]
+      │ (Submits Target URL & Polls Live Status)
+      ▼
+[ API & Web Crawler ] (Express.js + Cheerio)
+      │
+      ├──────────────────────► [ Centralized Telemetry / Audit Logs ]
+      │ (Publishes Tasks)
+      ▼
+[ Asynchronous Message Queue ] (Azure Service Bus / Parallel Task Queue)
+      │ (Pulls Tasks Concurrently)
+      ▼
+[ Link Verification Workers ] (HTTP HEAD + Streaming GET Fallback + Latency Timing)
+      │ (Persists Records)
+      ▼
+[ NoSQL Database ] (Azure Cosmos DB / Local Audit Store)
+      │
+      ▼
+[ Website Health Report & Analytics ] (Health Score Index, P95 Latency, CSV/JSON Export)
 ```
 
-### Cloud Services Mapping (Slide 7)
-| Purpose | AWS (Other Team) | Google Cloud (Our Implementation) |
-|---|---|---|
-| **API / Entry Point** | API Gateway | **Cloud Run** |
-| **Serverless Compute** | Lambda | **Cloud Run** |
-| **Message Queue** | Amazon SQS | **Cloud Pub/Sub** |
-| **Processing Workers** | Lambda Workers | **Cloud Run Workers** |
-| **Database** | DynamoDB | **Cloud Firestore** |
-| **Monitoring** | CloudWatch | **Cloud Logging** |
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons
+- **Backend API**: Node.js (ES Modules), Express.js, Axios, Cheerio
+- **Queue & Workers**: Azure Service Bus (`@azure/service-bus`) / Worker Queue
+- **Database**: Azure Cosmos DB NoSQL (`@azure/cosmos`) / In-Memory Store
+- **Deployment & CI/CD**: Microsoft Azure App Service, GitHub Actions
 
 ---
 
-## 👥 Team Work Distribution (Slide 8)
-- **Naghulan Sivamani R V (23z238)**: Cloud Run, workers and link-processing logic.
-  - Implemented Cloud Run REST API and HTML web crawler with Cheerio.
-  - Developed parallel link availability verification with HEAD/GET fallback.
-  - Engineered status classification (2xx Working, 3xx Redirect, 4xx Dead Link, 5xx Server Error, Timeout).
-  - Measured latency round-trip in milliseconds.
-- **Shreyaa S V (23z264)**: Pub/Sub, Firestore, Cloud Logging and GCP testing.
-  - Configured Cloud Pub/Sub topics and Push Subscription dispatch.
-  - Designed Cloud Firestore NoSQL schema (`scans` and `links` subcollections).
-  - Integrated Cloud Logging structured audit logs stream.
-  - Validated testbed scenarios and generated comprehensive health reports.
+## ⚡ Quickstart
 
----
+### Prerequisites
+- Node.js 20.x or higher
+- npm 10.x or higher
 
-## 🚀 Quickstart Guide (Local Emulation Mode)
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Nakul-06/webhealth.git
+cd webhealth
+```
 
-The project includes an **Instant Local Sandbox Mode** that runs immediately without requiring active GCP billing credentials:
+### 2. Install Dependencies
+```bash
+# Install backend dependencies
+cd backend
+npm install
 
-### 1. Start the System
-Simply double click `run.bat` or run in terminal:
-```powershell
+# Install frontend dependencies
+cd ../frontend
+npm install
+```
+
+### 3. Build & Run Locally
+```bash
+# Build the frontend production bundle
+npm run build
+
+# Start the unified backend server
+cd ../backend
 npm start
 ```
 
-### 2. Access Web Dashboard
-Open your browser to:
-```
-http://localhost:8080
-```
-
-### 3. Run a Scan
-- Click the **"Built-in Testbed"** preset button to test 200 OK, 301 Redirects, 404 Dead links, and 500 Errors.
-- Or enter any public URL (e.g., `https://news.ycombinator.com`).
-- Click **"Start Scan"**.
-- View live progress, the radial health score gauge, latency statistics, and export reports to CSV or JSON!
+Open your browser at `http://localhost:8080` to access the dashboard.
 
 ---
 
-## 🌐 Production Google Cloud Deployment
+## 🌐 API Reference
 
-### 1. Prerequisites
-- Install [Google Cloud SDK (gcloud CLI)](https://cloud.google.com/sdk/docs/install).
-- Run `gcloud auth login` to authenticate.
-
-### 2. Configure GCP Services
-```powershell
-.\gcp\setup_gcp.ps1 -ProjectId "your-gcp-project-id"
-```
-
-### 3. Deploy to Cloud Run
-```powershell
-.\gcp\deploy_cloud_run.ps1 -ProjectId "your-gcp-project-id"
-```
-The script will build the container with Google Cloud Build, deploy to Cloud Run, configure the Pub/Sub Push Subscription, and output your live public URL!
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/scan` | `POST` | Initiates a new website crawl and verification scan |
+| `/api/scans/:id` | `GET` | Fetches live scan progress and summary counts |
+| `/api/scans/:id/links` | `GET` | Queries verified links with optional status/type filters |
+| `/api/scans/:id/report` | `GET` | Generates full health report, score, and latency metrics |
+| `/api/system/status` | `GET` | Checks health of cloud services and queue status |
+| `/api/system/logs` | `GET` | Streams recent worker and pipeline audit logs |
+| `/api/test-site` | `GET` | Built-in testbed containing live, redirect, and dead links |
 
 ---
 
-## 📁 Repository Structure
+## ☁️ Microsoft Azure Configuration (Optional)
+
+To connect live Azure cloud resources, configure the following environment variables in Azure App Service Configuration or a local `.env` file:
+
+```env
+PORT=8080
+NODE_ENV=production
+
+# Azure Service Bus
+AZURE_SERVICE_BUS_CONNECTION_STRING=Endpoint=sb://<your-namespace>.servicebus.windows.net/...
+AZURE_QUEUE_NAME=dead-link-tasks
+
+# Azure Cosmos DB
+AZURE_COSMOS_ENDPOINT=https://<your-account>.documents.azure.com:443/
+AZURE_COSMOS_KEY=<your-primary-key>
+AZURE_DATABASE_NAME=webhealth-db
 ```
-Cloud-WEBHEALTH/
-├── backend/
-│   ├── src/
-│   │   ├── config/index.js           # GCP config & fallback settings
-│   │   ├── services/
-│   │   │   ├── crawler.js            # HTML parser & link discovery
-│   │   │   ├── linkChecker.js        # HTTP verification & latency profiler
-│   │   │   ├── pubsubService.js      # GCP Pub/Sub publish & push handler
-│   │   │   ├── firestoreService.js   # GCP Firestore NoSQL database service
-│   │   │   └── logger.js             # Google Cloud Logging structured logger
-│   │   ├── routes/
-│   │   │   ├── scanRoutes.js         # API & Health Report endpoints
-│   │   │   └── workerRoutes.js       # Cloud Run Worker Pub/Sub receiver
-│   │   ├── app.js                    # Express app & static UI server
-│   │   └── server.js                 # Server entry point
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Navbar.jsx            # Top navigation & GCP status
-│   │   │   ├── GcpPipelineBanner.jsx # Visual GCP pipeline (Slide 6)
-│   │   │   ├── ScanInput.jsx         # URL input & presets
-│   │   │   ├── HealthScoreCard.jsx   # Radial gauge & latency profile
-│   │   │   ├── StatCards.jsx         # Link counts breakdown
-│   │   │   ├── StatusDistributionBar.jsx # Visual status bar
-│   │   │   ├── RecommendationsPanel.jsx  # Automated health advice
-│   │   │   ├── LinksTable.jsx        # Searchable verified links table
-│   │   │   ├── CloudLogsDrawer.jsx   # Live GCP Cloud Logging viewer
-│   │   │   ├── ArchitectureModal.jsx # Review 1 Slide 6 & 7 diagrams
-│   │   │   └── ExportModal.jsx       # JSON/CSV download
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   └── package.json
-├── gcp/
-│   ├── setup_gcp.ps1                 # Automated GCP services setup
-│   ├── deploy_cloud_run.ps1          # One-click Cloud Run deployment
-│   └── terraform/                    # Infrastructure as Code (IaC)
-├── Dockerfile                        # Multi-stage Cloud Run container
-├── GCP_SETUP_GUIDE.md                # Step-by-step guide from scratch
-├── REVIEW_PRESENTATION_CHEATSHEET.md # Viva Q&A and presentation script
-└── run.bat                           # 1-click Windows launcher
-```
+
+*Note: If these variables are omitted, WebHealth automatically runs in Sandbox Emulation Mode with identical functionality.*
+
+---
+
+## 📄 License
+This project is licensed under the ISC License.

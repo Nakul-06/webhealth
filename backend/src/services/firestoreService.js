@@ -1,16 +1,37 @@
+import { CosmosClient } from '@azure/cosmos';
 import config from '../config/index.js';
 import logger from './logger.js';
 
-// In-memory NoSQL document store for Azure Cosmos DB emulation
+// In-memory NoSQL document store for high-performance caching & sandbox emulation
 const cosmosStore = {
   scans: new Map(), // scanId -> scanDocument
   links: new Map()  // scanId -> Map(linkId -> linkDocument)
 };
 
-logger.info('COSMOS_DB', 'Azure Cosmos DB NoSQL engine initialized (Local Emulation Mode)');
+let liveCosmosClient = null;
+let liveScansContainer = null;
+let liveLinksContainer = null;
+
+// Initialize Live Azure Cosmos DB if credentials are configured
+if (config.azure.cosmosDb.endpoint && config.azure.cosmosDb.key) {
+  try {
+    liveCosmosClient = new CosmosClient({
+      endpoint: config.azure.cosmosDb.endpoint,
+      key: config.azure.cosmosDb.key
+    });
+    const database = liveCosmosClient.database(config.azure.cosmosDb.databaseName);
+    liveScansContainer = database.container(config.azure.cosmosDb.scansContainer);
+    liveLinksContainer = database.container(config.azure.cosmosDb.linksContainer);
+    logger.info('COSMOS_DB', `Connected to live Azure Cosmos DB: ${config.azure.cosmosDb.endpoint}`);
+  } catch (err) {
+    logger.warn('COSMOS_DB', `Could not initialize live Azure Cosmos DB (${err.message}). Using sandbox engine.`);
+  }
+} else {
+  logger.info('COSMOS_DB', 'Azure Cosmos DB NoSQL engine initialized (Sandbox Emulation Mode)');
+}
 
 export const databaseService = {
-  isMock: () => config.azure.useMock,
+  isMock: () => !liveScansContainer,
 
   /**
    * Create a new scan document in Azure Cosmos DB
@@ -36,7 +57,7 @@ export const databaseService = {
         avgResponseTimeMs: 0,
         healthScore: 100 // 0 to 100%
       },
-      statusText: 'Scan initialized. Starting Azure crawler...',
+      statusText: 'Scan initialized. Starting crawler...',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       completedAt: null
@@ -44,6 +65,14 @@ export const databaseService = {
 
     cosmosStore.scans.set(scanId, document);
     cosmosStore.links.set(scanId, new Map());
+
+    // Asynchronously persist to live Cosmos DB if available
+    if (liveScansContainer) {
+      liveScansContainer.items.upsert(document).catch((err) => {
+        logger.warn('COSMOS_DB', `Live Cosmos DB upsert failed: ${err.message}`);
+      });
+    }
+
     logger.info('COSMOS_DB', `Document created in container 'scans': id=${scanId}`, {
       scanId,
       targetUrl: scanData.targetUrl
@@ -66,7 +95,14 @@ export const databaseService = {
     const updatedAt = new Date().toISOString();
     const existing = cosmosStore.scans.get(scanId);
     if (existing) {
-      cosmosStore.scans.set(scanId, { ...existing, ...updateFields, updatedAt });
+      const updated = { ...existing, ...updateFields, updatedAt };
+      cosmosStore.scans.set(scanId, updated);
+
+      if (liveScansContainer) {
+        liveScansContainer.items.upsert(updated).catch((err) => {
+          logger.warn('COSMOS_DB', `Live Cosmos DB update failed: ${err.message}`);
+        });
+      }
     }
   },
 
@@ -78,6 +114,7 @@ export const databaseService = {
     const now = new Date().toISOString();
     const linkRecord = {
       ...linkResult,
+      scanId,
       recordedAt: now
     };
 
@@ -110,9 +147,16 @@ export const databaseService = {
       scan.completedAt = now;
       scan.statusText = 'Scan completed. Health report ready.';
     } else {
-      scan.statusText = `Azure workers verifying links (${summary.totalChecked}/${summary.totalFound})...`;
+      scan.statusText = `Workers verifying links (${summary.totalChecked}/${summary.totalFound})...`;
     }
     scan.updatedAt = now;
+
+    // Asynchronously persist to live Cosmos DB if available
+    if (liveLinksContainer) {
+      liveLinksContainer.items.upsert(linkRecord).catch((err) => {
+        logger.warn('COSMOS_DB', `Live Cosmos DB link upsert failed: ${err.message}`);
+      });
+    }
   },
 
   /**

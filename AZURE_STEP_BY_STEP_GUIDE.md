@@ -30,15 +30,15 @@ Our project uses the industry-standard decoupled microservices architecture on M
 [ Website Health Report ] (Radial Gauge, Latency Profile, CSV/JSON Export)
 ```
 
-### Direct Mapping to Review 1 Slides:
-| Purpose | AWS (Team 1) | Microsoft Azure (Our Implementation) | Google Cloud |
+### Cloud Architecture Service Mapping:
+| Purpose | Microsoft Azure | Amazon Web Services | Google Cloud Platform |
 |---|---|---|---|
-| **API / Entry Point** | API Gateway | **Azure Container Apps** | Cloud Run |
-| **Serverless Compute** | Lambda | **Azure Container Apps** | Cloud Run |
-| **Message Queue** | Amazon SQS | **Azure Service Bus** | Pub/Sub |
-| **Processing Workers** | Lambda Workers | **Azure Container Workers** | Cloud Run Workers |
-| **Database** | DynamoDB | **Azure Cosmos DB (NoSQL)** | Firestore |
-| **Monitoring** | CloudWatch | **Azure Monitor & App Insights** | Cloud Logging |
+| **API / Entry Point** | **Azure App Service / Container Apps** | API Gateway | Cloud Run |
+| **Serverless Compute** | **Azure Functions / Container Apps** | Lambda | Cloud Run |
+| **Message Queue** | **Azure Service Bus** | Amazon SQS | Cloud Pub/Sub |
+| **Processing Workers** | **Azure Container Workers** | Lambda Workers | Cloud Run Workers |
+| **Database** | **Azure Cosmos DB (NoSQL)** | DynamoDB | Firestore |
+| **Monitoring** | **Azure Monitor & App Insights** | CloudWatch | Cloud Logging |
 
 ---
 

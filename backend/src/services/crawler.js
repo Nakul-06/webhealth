@@ -1,3 +1,4 @@
+import https from 'https';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,6 +13,7 @@ export class WebsiteCrawler {
     this.userAgent = config.crawler.userAgent;
     this.visitedUrls = new Set();
     this.discoveredLinks = new Map(); // normalizedUrl -> linkObject
+    this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
   }
 
   /**
@@ -20,27 +22,34 @@ export class WebsiteCrawler {
   normalizeUrl(rawUrl, baseUrl) {
     try {
       if (!rawUrl) return null;
-      const trimmed = rawUrl.trim();
+      let trimmed = rawUrl.trim();
+      if (!trimmed) return null;
 
-      // Skip anchors, javascript, mailto, tel, ftp, data URLs
+      // Skip anchors, javascript, mailto, tel, ftp, data URLs, sms, etc.
       if (
         trimmed.startsWith('#') ||
         trimmed.startsWith('javascript:') ||
         trimmed.startsWith('mailto:') ||
         trimmed.startsWith('tel:') ||
         trimmed.startsWith('data:') ||
-        trimmed.startsWith('ftp:')
+        trimmed.startsWith('ftp:') ||
+        trimmed.startsWith('sms:') ||
+        trimmed.startsWith('whatsapp:') ||
+        trimmed.startsWith('callto:')
       ) {
         return null;
       }
 
       const resolved = new URL(trimmed, baseUrl);
-      // Only http and https
+      // Only http and https protocols
       if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') {
         return null;
       }
 
-      // Remove trailing slash for consistency (unless root '/')
+      // Strip hash fragments (#section) so identical pages with different anchors aren't duplicated
+      resolved.hash = '';
+
+      // Normalize trailing slash for consistency (unless root '/')
       let cleanUrl = resolved.href;
       if (cleanUrl.endsWith('/') && resolved.pathname !== '/') {
         cleanUrl = cleanUrl.slice(0, -1);
@@ -54,7 +63,13 @@ export class WebsiteCrawler {
   isInternalLink(targetUrl, rootOrigin) {
     try {
       const parsed = new URL(targetUrl);
-      return parsed.origin === rootOrigin;
+      const rootParsed = new URL(rootOrigin);
+      if (parsed.origin === rootParsed.origin) return true;
+
+      // Handle www vs non-www hostnames
+      const targetHost = parsed.hostname.replace(/^www\./, '');
+      const rootHost = rootParsed.hostname.replace(/^www\./, '');
+      return targetHost === rootHost;
     } catch {
       return false;
     }
@@ -73,10 +88,13 @@ export class WebsiteCrawler {
       const response = await axios.get(pageUrl, {
         headers: {
           'User-Agent': this.userAgent,
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache'
         },
         timeout: this.timeout,
-        maxRedirects: 5
+        maxRedirects: 5,
+        httpsAgent: this.httpsAgent
       });
 
       const contentType = response.headers['content-type'] || '';

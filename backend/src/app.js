@@ -23,7 +23,7 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     const duration = Date.now() - start;
     if (req.path.startsWith('/api') || req.path === '/health') {
-      logger.info('CLOUD_RUN', `${req.method} ${req.originalUrl} [${res.statusCode}] - ${duration}ms`, {
+      logger.info('API_GATEWAY', `${req.method} ${req.originalUrl} [${res.statusCode}] - ${duration}ms`, {
         method: req.method,
         url: req.originalUrl,
         statusCode: res.statusCode,
@@ -35,12 +35,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Container Liveness / Readiness Probe for Google Cloud Run
+// Container Liveness / Readiness Health Probe
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'HEALTHY',
     service: 'dead-link-detector',
-    cloudPlatform: 'Google Cloud Platform (GCP)',
+    cloudPlatform: 'Microsoft Azure',
     timestamp: new Date().toISOString()
   });
 });
@@ -49,12 +49,21 @@ app.get('/health', (req, res) => {
 app.use('/api', scanRoutes);
 app.use('/api', workerRoutes);
 
-// Serve Frontend Static files if built (for unified Cloud Run deployment)
-const clientBuildPath = path.resolve(__dirname, '../../frontend/dist');
-if (fs.existsSync(clientBuildPath)) {
+// Serve Frontend Static files if built
+const candidatePaths = [
+  path.resolve(__dirname, '../../frontend/dist'),
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve(process.cwd(), 'dist'),
+  path.resolve(__dirname, '../dist')
+];
+
+const clientBuildPath = candidatePaths.find((p) => fs.existsSync(p));
+
+if (clientBuildPath) {
+  logger.info('API_GATEWAY', `Serving frontend UI from: ${clientBuildPath}`);
   app.use(express.static(clientBuildPath));
   app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
+    if (!req.path.startsWith('/api') && req.path !== '/health') {
       res.sendFile(path.join(clientBuildPath, 'index.html'));
     }
   });
@@ -67,7 +76,7 @@ app.use('/api/*', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  logger.error('CLOUD_RUN', `Unhandled Express Error: ${err.message}`, { stack: err.stack });
+  logger.error('API_GATEWAY', `Unhandled Express Error: ${err.message}`, { stack: err.stack });
   res.status(500).json({ error: 'Internal Server Error', message: err.message });
 });
 

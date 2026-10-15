@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
-import GcpPipelineBanner from './components/GcpPipelineBanner';
+import PipelineBanner from './components/PipelineBanner';
 import ScanInput from './components/ScanInput';
 import HealthScoreCard from './components/HealthScoreCard';
 import StatCards from './components/StatCards';
@@ -28,7 +28,7 @@ export default function App() {
 
   const pollTimerRef = useRef(null);
 
-  // Fetch GCP System Status
+  // Fetch Cloud System Status
   useEffect(() => {
     fetch('/api/system/status')
       .then((res) => res.json())
@@ -125,8 +125,8 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* GCP System Architecture Flow */}
-        <GcpPipelineBanner
+        {/* Cloud Architecture Pipeline Flow */}
+        <PipelineBanner
           scanStatus={scan?.status || 'IDLE'}
           currentStep={scan?.status}
         />
@@ -149,7 +149,7 @@ export default function App() {
               <div className="flex items-center space-x-2">
                 <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />
                 <span className="font-bold text-white">
-                  {scan.statusText || 'GCP Cloud Run processing...'}
+                  {scan.statusText || 'Distributed Workers processing...'}
                 </span>
               </div>
               <span className="font-mono text-blue-400 font-semibold">
@@ -224,10 +224,10 @@ export default function App() {
             </div>
             <h3 className="text-lg font-bold text-white mb-2">Ready to Monitor Website Health</h3>
             <p className="text-sm text-slate-400 max-w-md mx-auto mb-6">
-              Enter any website URL above or click the built-in testbed preset to observe the live Azure serverless detection pipeline.
+              Enter any website URL above or launch the built-in testbed to observe the live distributed detection pipeline.
             </p>
             <button
-              onClick={() => handleStartScan({ url: 'http://localhost:8080/api/test-site', maxDepth: 1, maxLinks: 20 })}
+              onClick={() => handleStartScan({ url: (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080') + '/api/test-site', maxDepth: 1, maxLinks: 20 })}
               className="inline-flex items-center space-x-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-sky-500/20 transition"
             >
               <span>Launch Demo Evaluation Scan</span>
@@ -238,14 +238,18 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            Cloud Computing — Review 1 | <strong>Microsoft Azure Implementation</strong>
-          </span>
-          <div className="flex items-center space-x-3">
-            <span>Naghulan Sivamani R V (23z238)</span>
-            <span>•</span>
-            <span>Shreyaa S V (23z264)</span>
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="font-bold text-slate-300">WebHealth</span>
+            <span>&bull;</span>
+            <span>Cloud-Native Dead Link Detection &amp; Website Health Monitoring</span>
+          </div>
+          <div className="flex items-center space-x-3 text-slate-400">
+            <span>Production Grade</span>
+            <span>&bull;</span>
+            <span>Multi-Worker Pipeline</span>
+            <span>&bull;</span>
+            <span>REST API &amp; Telemetry</span>
           </div>
         </div>
       </footer>

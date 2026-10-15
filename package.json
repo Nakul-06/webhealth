@@ -1,13 +1,15 @@
 {
-  "name": "cloud-webhealth-system",
+  "name": "webhealth-system",
   "version": "1.0.0",
-  "description": "Cloud-Based Dead Link Detection and Website Health Monitoring System - Microsoft Azure",
+  "description": "Cloud-Based Dead Link Detection and Website Health Monitoring System",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "@azure/cosmos": "^4.10.1",
+    "@azure/service-bus": "^7.10.0",
     "axios": "^1.8.2",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
@@ -18,6 +20,6 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "author": "Naghulan Sivamani R V & Shreyaa S V",
+  "author": "WebHealth Team",
   "license": "ISC"
 }

@@ -6,7 +6,7 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
-# Stage 2: Production Google Cloud Run Container
+# Stage 2: Production WebHealth Container
 FROM node:20-alpine
 WORKDIR /app
 
@@ -21,7 +21,7 @@ COPY backend/ ./
 # Copy built frontend assets from builder stage
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
-# Cloud Run defaults to PORT 8080
+# Default application port 8080
 ENV PORT=8080
 ENV NODE_ENV=production
 EXPOSE 8080

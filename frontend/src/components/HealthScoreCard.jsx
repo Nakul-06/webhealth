@@ -106,7 +106,7 @@ export default function HealthScoreCard({ healthAssessment, latencyMetrics, isCo
 
       <div className="text-[11px] text-slate-400 pt-3 border-t border-slate-700/60 flex items-center justify-between">
         <span>Calculated from live HTTP status verification</span>
-        <span className="text-slate-500 font-mono">GCP Serverless Engine</span>
+        <span className="text-slate-500 font-mono">Distributed Cloud Engine</span>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 @echo off
-title Cloud WebHealth - GCP Monitor
+title WebHealth - Cloud Dead Link Detection & Website Health Monitor
 echo ================================================================
-echo   CLOUD-BASED DEAD LINK DETECTION AND WEBSITE HEALTH MONITOR
-echo              Google Cloud Platform Implementation
+echo   WEBHEALTH: CLOUD DEAD LINK DETECTION & HEALTH MONITOR
+echo              Cloud Distributed Implementation
 echo ================================================================
 echo Starting backend server and serving web dashboard...
 cd /d "%~dp0\backend"

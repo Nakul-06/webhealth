@@ -6,7 +6,7 @@ const router = express.Router();
 
 /**
  * POST /api/worker/pubsub-push
- * Cloud Run Worker Endpoint triggered by Google Cloud Pub/Sub Push Subscription
+ * Worker Endpoint triggered by Queue Webhook / Push Event
  * Body format: { message: { data: "<base64>", messageId: "..." } }
  */
 router.post('/worker/pubsub-push', async (req, res) => {

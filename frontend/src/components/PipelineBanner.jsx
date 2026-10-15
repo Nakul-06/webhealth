@@ -1,42 +1,42 @@
 import React from 'react';
 import { Globe, Server, MessageSquareQuote, Cpu, Database, Activity } from 'lucide-react';
 
-export default function GcpPipelineBanner({ scanStatus }) {
+export default function PipelineBanner({ scanStatus }) {
   const steps = [
     {
       id: 'FRONTEND',
-      name: 'Web Frontend',
+      name: 'Web Client',
       sub: 'User Interface',
       icon: Globe
     },
     {
-      id: 'CONTAINER_APPS',
-      name: 'Azure Container Apps',
-      sub: 'API & Crawler',
+      id: 'API_GATEWAY',
+      name: 'API & Crawler',
+      sub: 'Site Parser Gateway',
       icon: Server
     },
     {
-      id: 'SERVICE_BUS',
-      name: 'Azure Service Bus',
-      sub: 'Message Queue',
+      id: 'MESSAGE_QUEUE',
+      name: 'Message Queue',
+      sub: 'Async Task Bus',
       icon: MessageSquareQuote
     },
     {
       id: 'WORKERS',
-      name: 'Azure Workers',
-      sub: 'Parallel Checkers',
+      name: 'Link Workers',
+      sub: 'Parallel Verification',
       icon: Cpu
     },
     {
-      id: 'COSMOS_DB',
-      name: 'Azure Cosmos DB',
-      sub: 'NoSQL Storage',
+      id: 'DATABASE',
+      name: 'NoSQL Database',
+      sub: 'Audit Store',
       icon: Database
     },
     {
       id: 'REPORT',
       name: 'Health Report',
-      sub: 'Analytics & Audit',
+      sub: 'Analytics & Export',
       icon: Activity
     }
   ];
@@ -45,9 +45,9 @@ export default function GcpPipelineBanner({ scanStatus }) {
     if (scanStatus === 'COMPLETED') return 'completed';
     if (scanStatus === 'FAILED') return 'idle';
 
-    if (scanStatus === 'INITIALIZING' && (stepId === 'FRONTEND' || stepId === 'CONTAINER_APPS')) return 'active';
-    if (scanStatus === 'CRAWLING' && stepId === 'CONTAINER_APPS') return 'active';
-    if (scanStatus === 'CHECKING_LINKS' && (stepId === 'SERVICE_BUS' || stepId === 'WORKERS' || stepId === 'COSMOS_DB')) return 'active';
+    if (scanStatus === 'INITIALIZING' && (stepId === 'FRONTEND' || stepId === 'API_GATEWAY')) return 'active';
+    if (scanStatus === 'CRAWLING' && stepId === 'API_GATEWAY') return 'active';
+    if (scanStatus === 'CHECKING_LINKS' && (stepId === 'MESSAGE_QUEUE' || stepId === 'WORKERS' || stepId === 'DATABASE')) return 'active';
 
     return 'idle';
   };
@@ -57,15 +57,15 @@ export default function GcpPipelineBanner({ scanStatus }) {
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center space-x-2">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Microsoft Azure Serverless Architecture Pipeline
+            Cloud Asynchronous Processing Pipeline
           </span>
           <span className="text-xs px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-500/20 font-mono">
-            Azure for Students Architecture
+            Decoupled Architecture
           </span>
         </div>
         {scanStatus && scanStatus !== 'IDLE' && (
           <div className="flex items-center space-x-2 text-xs">
-            <span className="text-slate-400">Current Phase:</span>
+            <span className="text-slate-400">Status:</span>
             <span className="font-semibold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
               {scanStatus}
             </span>

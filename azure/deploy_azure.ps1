@@ -1,6 +1,5 @@
 # Microsoft Azure Deployment Script
 # Project: Cloud-Based Dead Link Detection and Website Health Monitoring System
-# Team: Naghulan Sivamani R V & Shreyaa S V
 
 param(
     [Parameter(Mandatory=$false)]

@@ -23,19 +23,19 @@ router.get('/test-site', (req, res) => {
       <style>body { font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto; }</style>
     </head>
     <body>
-      <h1>Cloud WebHealth Evaluation Site</h1>
-      <p>This testbed contains deliberate live, redirect, and dead links to test the GCP monitoring pipeline.</p>
+      <h1>WebHealth Evaluation Site</h1>
+      <p>This testbed contains deliberate live, redirect, and dead links to test the distributed link verification pipeline.</p>
       <ul>
         <li><a href="${host}/api/test-site/live-page">Homepage & Live Services</a> (200 OK)</li>
         <li><a href="${host}/api/test-site/about">Company About Us</a> (200 OK)</li>
-        <li><a href="${host}/api/test-site/documentation">Cloud Run Documentation</a> (200 OK)</li>
+        <li><a href="${host}/api/test-site/documentation">System Documentation</a> (200 OK)</li>
         <li><a href="${host}/api/test-site/redirect-old-url">Old Documentation Link</a> (301 Permanent Redirect)</li>
         <li><a href="${host}/api/test-site/temp-redirect">Beta Portal Link</a> (302 Temporary Redirect)</li>
         <li><a href="${host}/api/test-site/dead-link-404">Deprecated Blog Post</a> (404 Dead Link)</li>
         <li><a href="${host}/api/test-site/deleted-resource-410">Discontinued API Reference</a> (410 Dead Link)</li>
         <li><a href="${host}/api/test-site/server-error-500">Unstable Legacy Gateway</a> (500 Server Error)</li>
         <li><a href="${host}/api/test-site/slow-response">Heavy Reporting Service</a> (Slow Latency)</li>
-        <li><a href="https://cloud.google.com/run">Official Google Cloud Run</a> (External Valid Link)</li>
+        <li><a href="https://httpbin.org/status/200">External Valid Link</a> (External 200 OK)</li>
         <li><a href="https://httpbin.org/status/404">External Broken Link</a> (External 404)</li>
       </ul>
     </body>

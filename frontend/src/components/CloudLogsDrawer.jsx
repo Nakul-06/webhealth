@@ -61,8 +61,8 @@ export default function CloudLogsDrawer({ isOpen, onClose }) {
         <div className="flex items-center space-x-2">
           <Terminal className="w-5 h-5 text-sky-400" />
           <div>
-            <h3 className="text-sm font-bold text-white tracking-tight">Azure Monitor Log Stream</h3>
-            <p className="text-[11px] text-slate-400">Application Insights & Container telemetry</p>
+            <h3 className="text-sm font-bold text-white tracking-tight">Audit & Telemetry Stream</h3>
+            <p className="text-[11px] text-slate-400">Real-time distributed link verification logs</p>
           </div>
         </div>
 
@@ -92,11 +92,11 @@ export default function CloudLogsDrawer({ isOpen, onClose }) {
             onChange={(e) => setFilterComponent(e.target.value)}
             className="bg-slate-800 text-slate-300 border border-slate-700 rounded px-2 py-1 text-xs"
           >
-            <option value="ALL">All Azure Components</option>
-            <option value="CONTAINER_APPS">Container Apps</option>
-            <option value="SERVICE_BUS">Service Bus</option>
-            <option value="WORKER">Worker Queue</option>
-            <option value="COSMOS_DB">Cosmos DB</option>
+            <option value="ALL">All Components</option>
+            <option value="CONTAINER_APPS">API Gateway</option>
+            <option value="SERVICE_BUS">Message Queue</option>
+            <option value="WORKER">Worker Engine</option>
+            <option value="COSMOS_DB">Database</option>
             <option value="CRAWLER">Crawler</option>
           </select>
 
@@ -127,7 +127,7 @@ export default function CloudLogsDrawer({ isOpen, onClose }) {
       <div className="flex-1 overflow-y-auto p-4 space-y-2 text-xs">
         {filteredLogs.length === 0 ? (
           <div className="text-center py-12 text-slate-600">
-            No logs recorded yet. Start a website scan to view Azure event stream.
+            No logs recorded yet. Start a website scan to view the event stream.
           </div>
         ) : (
           filteredLogs.map((log, index) => (
@@ -157,7 +157,7 @@ export default function CloudLogsDrawer({ isOpen, onClose }) {
 
       {/* Footer */}
       <div className="p-3 border-t border-slate-800 bg-slate-950 text-[11px] text-slate-500 flex justify-between items-center">
-        <span>Log sink: Azure Monitor Application Insights</span>
+        <span>Log sink: Central Telemetry Store</span>
         <span>Showing {filteredLogs.length} entries</span>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { Search, Play, Settings2, Sparkles, AlertCircle, RefreshCw } from 'lucid
 export default function ScanInput({ onStartScan, isLoading }) {
   const [url, setUrl] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
-  const [maxLinks, setMaxLinks] = useState(30);
+  const [maxLinks, setMaxLinks] = useState(40);
   const [showOptions, setShowOptions] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -14,7 +14,7 @@ export default function ScanInput({ onStartScan, isLoading }) {
 
     let trimmed = url.trim();
     if (!trimmed) {
-      setValidationError('Please enter a website URL');
+      setValidationError('Please enter a website URL to scan');
       return;
     }
 
@@ -26,7 +26,7 @@ export default function ScanInput({ onStartScan, isLoading }) {
     try {
       new URL(trimmed);
     } catch {
-      setValidationError('Please enter a valid URL');
+      setValidationError('Please enter a valid URL (e.g., https://example.com)');
       return;
     }
 
@@ -47,12 +47,12 @@ export default function ScanInput({ onStartScan, isLoading }) {
       <div className="mb-4">
         <h2 className="text-xl font-bold text-white tracking-tight flex items-center space-x-2">
           <span>Website Health Scanner</span>
-          <span className="text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full font-medium">
-            Azure Container Apps
+          <span className="text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2.5 py-0.5 rounded-full font-medium">
+            Automated Audit
           </span>
         </h2>
         <p className="text-sm text-slate-400 mt-1">
-          Scan any website to automatically detect dead links, redirects, and latency issues using serverless Azure workers.
+          Crawls your website to discover all internal and external hyperlinks, verifies HTTP availability in parallel, and generates a comprehensive health audit.
         </p>
       </div>
 
@@ -68,7 +68,7 @@ export default function ScanInput({ onStartScan, isLoading }) {
               setUrl(e.target.value);
               setValidationError('');
             }}
-            placeholder="Enter target website URL (e.g., https://example.com or use quick preset below)"
+            placeholder="Enter target website URL (e.g., https://yourwebsite.com)"
             disabled={isLoading}
             className="w-full pl-11 pr-32 py-3.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm transition font-mono disabled:opacity-60"
           />
@@ -109,12 +109,12 @@ export default function ScanInput({ onStartScan, isLoading }) {
           </div>
         )}
 
-        {/* Quick Presets for Instant Demo */}
+        {/* Quick Presets */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <span className="text-xs text-slate-400 font-medium">Quick Presets:</span>
           <button
             type="button"
-            onClick={() => handleSetQuickUrl('http://localhost:8080/api/test-site', 1, 20)}
+            onClick={() => handleSetQuickUrl((typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080') + '/api/test-site', 1, 20)}
             className="text-xs px-2.5 py-1 rounded-lg bg-sky-950/60 hover:bg-sky-900/60 border border-sky-500/30 text-sky-300 transition flex items-center space-x-1"
           >
             <Sparkles className="w-3 h-3 text-sky-400" />
@@ -129,14 +129,14 @@ export default function ScanInput({ onStartScan, isLoading }) {
           </button>
           <button
             type="button"
-            onClick={() => handleSetQuickUrl('https://azure.microsoft.com', 1, 20)}
+            onClick={() => handleSetQuickUrl('https://en.wikipedia.org/wiki/Main_Page', 1, 30)}
             className="text-xs px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 transition"
           >
-            Microsoft Azure Official
+            Wikipedia
           </button>
         </div>
 
-        {/* Advanced Options Drawer */}
+        {/* Advanced Options */}
         {showOptions && (
           <div className="pt-4 border-t border-slate-700/60 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -152,7 +152,7 @@ export default function ScanInput({ onStartScan, isLoading }) {
                 onChange={(e) => setMaxLinks(e.target.value)}
                 className="w-full accent-sky-500 cursor-pointer"
               />
-              <span className="text-[11px] text-slate-400">Controls worker task batch size in Azure Service Bus</span>
+              <span className="text-[11px] text-slate-400">Controls worker task batch size</span>
             </div>
 
             <div>
