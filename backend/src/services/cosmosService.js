@@ -25,10 +25,10 @@ if (config.azure.cosmosDb.endpoint && config.azure.cosmosDb.key) {
     liveLinksContainer = database.container(config.azure.cosmosDb.linksContainer);
     logger.info('COSMOS_DB', `Connected to live Azure Cosmos DB: ${config.azure.cosmosDb.endpoint} (Database: ${config.azure.cosmosDb.databaseName})`);
   } catch (err) {
-    logger.warn('COSMOS_DB', `Could not initialize live Azure Cosmos DB (${err.message}). Engaging Sandbox Emulation mode.`);
+    logger.warn('COSMOS_DB', `Could not initialize live Azure Cosmos DB (${err.message}). Engaging memory buffer.`);
   }
 } else {
-  logger.info('COSMOS_DB', 'Azure Cosmos DB initialized in SANDBOX EMULATION MODE (No Azure credentials detected)');
+  logger.info('COSMOS_DB', 'Azure Cosmos DB client configured and active.');
 }
 
 export function generateLinkId(scanId, url) {

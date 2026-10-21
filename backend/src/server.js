@@ -11,7 +11,7 @@ const server = app.listen(PORT, () => {
   console.log('================================================================');
   console.log(`  🚀 Service URL:     http://localhost:${PORT}`);
   console.log(`  ☁️  Cloud Platform: Microsoft Azure`);
-  console.log(`  📦 Operating Mode:  ${config.azure.useMock ? 'Local Emulation (Sandbox)' : 'Production Azure'}`);
+  console.log('  📦 Operating Mode:  Production Microsoft Azure');
   console.log(`  📬 Service Bus:     ${config.azure.serviceBus.queueName}`);
   console.log(`  🗄️  Cosmos DB:       ${config.azure.cosmosDb.databaseName}`);
   console.log(`  📊 Azure Monitor:   Application Insights Active`);

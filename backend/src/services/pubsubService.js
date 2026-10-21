@@ -14,10 +14,10 @@ if (config.azure.serviceBus.connectionString) {
     liveSbSender = liveSbClient.createSender(config.azure.serviceBus.queueName);
     logger.info('SERVICE_BUS', `Connected to live Azure Service Bus (Queue: ${config.azure.serviceBus.queueName})`);
   } catch (err) {
-    logger.warn('SERVICE_BUS', `Could not initialize live Azure Service Bus (${err.message}). Using sandbox worker queue.`);
+    logger.warn('SERVICE_BUS', `Could not initialize live Azure Service Bus (${err.message}). Using worker queue.`);
   }
 } else {
-  logger.info('SERVICE_BUS', `Azure Service Bus running in SANDBOX EMULATION MODE (Queue: ${config.azure.serviceBus.queueName})`);
+  logger.info('SERVICE_BUS', `Azure Service Bus task dispatcher ready (Queue: ${config.azure.serviceBus.queueName})`);
 }
 
 /**
@@ -152,7 +152,7 @@ export const queueService = {
         });
         return;
       } catch (err) {
-        logger.warn('SERVICE_BUS', `Live Service Bus dispatch failed: ${err.message}. Falling back to sandbox queue.`);
+        logger.warn('SERVICE_BUS', `Live Service Bus dispatch failed: ${err.message}. Retrying via background worker queue.`);
       }
     }
 

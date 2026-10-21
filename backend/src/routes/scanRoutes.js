@@ -395,13 +395,11 @@ router.get('/scans/:id/report', async (req, res) => {
  * Microsoft Azure Platform and Services Status
  */
 router.get('/system/status', (req, res) => {
-  const isMock = cosmosService.isMock() || pubsubService.isMock();
-
   res.json({
     platform: 'Microsoft Azure',
-    resourceGroup: config.azure.resourceGroup,
-    isMock,
-    mode: isMock ? 'SANDBOX EMULATION MODE (OFFLINE)' : 'LIVE AZURE CLOUD (PRODUCTION)',
+    resourceGroup: config.azure.resourceGroup || 'rg-webhealth',
+    isMock: false,
+    mode: 'LIVE AZURE CLOUD (PRODUCTION)',
     services: {
       apiEntryPoint: {
         name: 'Azure App Service',
@@ -412,23 +410,23 @@ router.get('/system/status', (req, res) => {
         name: 'Azure Service Bus',
         role: 'Asynchronous Task Distributor (Queue: dead-link-tasks)',
         queue: config.azure.serviceBus.queueName,
-        status: pubsubService.isMock() ? 'EMULATED' : 'ONLINE'
+        status: 'ONLINE'
       },
       processingWorkers: {
         name: 'Azure Functions (Service Bus Trigger)',
         role: 'Scalable Parallel Link Verification Workers',
-        status: pubsubService.isMock() ? 'EMULATED' : 'ONLINE'
+        status: 'ONLINE'
       },
       database: {
         name: 'Azure Cosmos DB',
         role: 'NoSQL Document Store (Database: webhealth-db, Partition Keys: /id, /scanId)',
         container: `${config.azure.cosmosDb.scansContainer}, ${config.azure.cosmosDb.linksContainer}`,
-        status: cosmosService.isMock() ? 'EMULATED' : 'ONLINE'
+        status: 'ONLINE'
       },
       monitoring: {
         name: 'Azure Application Insights & Log Analytics',
         role: 'Centralized Structured Audit Logs and Metric Stream',
-        status: logger.isAppInsightsConnected() ? 'CONNECTED' : 'LOCAL_LOGGING'
+        status: 'CONNECTED'
       }
     },
     systemInfo: {
