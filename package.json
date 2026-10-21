@@ -10,6 +10,7 @@
   "dependencies": {
     "@azure/cosmos": "^4.10.1",
     "@azure/service-bus": "^7.10.0",
+    "applicationinsights": "^3.17.0",
     "axios": "^1.8.2",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",

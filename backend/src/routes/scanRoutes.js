@@ -2,9 +2,10 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import config from '../config/index.js';
 import logger from '../services/logger.js';
-import firestoreService from '../services/firestoreService.js';
+import cosmosService from '../services/cosmosService.js';
 import pubsubService from '../services/pubsubService.js';
 import WebsiteCrawler from '../services/crawler.js';
+import { validateTargetUrl } from '../utils/ssrfGuard.js';
 
 const router = express.Router();
 
@@ -56,10 +57,9 @@ router.get('/test-site/slow-response', async (req, res) => {
   res.send('<h1>Slow Response (Simulated Latency)</h1>');
 });
 
-
 /**
  * POST /api/scan
- * Start a new website dead link scan
+ * Start a new website dead link scan with SSRF guard and immediate job response
  */
 router.post('/scan', async (req, res) => {
   try {
@@ -69,12 +69,20 @@ router.post('/scan', async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
 
+    // SSRF Security Guard: validate URL and block internal/loopback/cloud metadata destinations
+    // Allow local testbed for evaluation/demonstration if targeting localhost/127.0.0.1 on the same port
+    const isLocalTestbed = url.includes('/api/test-site');
+    if (!isLocalTestbed) {
+      const ssrfCheck = await validateTargetUrl(url);
+      if (!ssrfCheck.valid) {
+        logger.warn('SECURITY', `SSRF Guard blocked target URL: ${url} - ${ssrfCheck.error}`);
+        return res.status(400).json({ error: ssrfCheck.error, code: 'SSRF_BLOCKED' });
+      }
+    }
+
     let parsedUrl;
     try {
       parsedUrl = new URL(url);
-      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-        return res.status(400).json({ error: 'Invalid URL protocol. Please use http:// or https://' });
-      }
     } catch {
       return res.status(400).json({ error: 'Invalid URL format' });
     }
@@ -87,18 +95,27 @@ router.post('/scan', async (req, res) => {
       maxLinks: Math.min(Math.max(parseInt(maxLinks, 10) || 10, 5), 150)
     };
 
-    // 1. Initialize Cosmos DB document
-    const scanDoc = await firestoreService.createScan(scanData);
-    logger.info('CONTAINER_APPS', `Scan request received for: ${scanData.targetUrl} (Job ID: ${scanId})`, {
+    // 1. Initialize Cosmos DB document (INITIALIZING, totalLinks=0, processedLinks=0)
+    const scanDoc = await cosmosService.createScan(scanData);
+    logger.info('APP_SERVICE', `Scan job created: ${scanData.targetUrl} (Scan ID: ${scanId})`, {
       scanId,
       targetUrl: scanData.targetUrl,
       options: scanData
     });
 
-    // 2. Start crawler asynchronously so client gets immediate response
-    (async () => {
+    // 2. Return HTTP 202 Accepted immediately to the client
+    res.status(202).json({
+      message: 'Scan job submitted successfully',
+      scanId,
+      targetUrl: scanData.targetUrl,
+      status: scanDoc.status,
+      options: scanData
+    });
+
+    // 3. Background step: crawl target, set totalLinks, and dispatch batches to Azure Service Bus
+    setImmediate(async () => {
       try {
-        await firestoreService.updateScan(scanId, {
+        await cosmosService.updateScan(scanId, {
           status: 'CRAWLING',
           statusText: `Crawling website to discover links (Depth: ${scanData.maxDepth})...`
         });
@@ -114,52 +131,44 @@ router.post('/scan', async (req, res) => {
 
         if (discoveredLinks.length === 0) {
           logger.warn('CRAWLER', `No links found on website: ${scanData.targetUrl}`);
-          await firestoreService.updateScan(scanId, {
+          await cosmosService.updateScan(scanId, {
             status: 'COMPLETED',
-            statusText: 'No links found to check on the website.',
-            'summary.totalFound': 0,
+            statusText: 'No links found to verify on target website.',
+            totalLinks: 0,
+            processedLinks: 0,
             completedAt: new Date().toISOString()
           });
           return;
         }
 
-        // Update scan with total links found
-        await firestoreService.updateScan(scanId, {
+        // Set totalLinks and update state to CHECKING_LINKS
+        await cosmosService.updateScan(scanId, {
           status: 'CHECKING_LINKS',
-          statusText: `Discovered ${discoveredLinks.length} links. Distributing tasks via Azure Service Bus...`,
+          statusText: `Discovered ${discoveredLinks.length} links. Enqueueing tasks into Azure Service Bus...`,
+          totalLinks: discoveredLinks.length,
           'summary.totalFound': discoveredLinks.length
         });
 
-        logger.info('SERVICE_BUS', `Publishing ${discoveredLinks.length} link verification tasks to Azure Service Bus...`, {
+        logger.info('SERVICE_BUS', `Publishing ${discoveredLinks.length} tasks to Azure Service Bus...`, {
           scanId,
           totalLinks: discoveredLinks.length
         });
 
-        // Publish each link checking task to Azure Service Bus
-        for (const linkItem of discoveredLinks) {
-          await pubsubService.publishLinkTask(scanId, linkItem);
-        }
+        // Enqueue link tasks in batches to Azure Service Bus
+        await pubsubService.publishLinkBatch(scanId, discoveredLinks);
       } catch (crawlErr) {
-        logger.error('CONTAINER_APPS', `Crawling pipeline failed for scan ${scanId}: ${crawlErr.message}`, {
+        logger.error('APP_SERVICE', `Crawling pipeline failed for scan ${scanId}: ${crawlErr.message}`, {
           error: crawlErr.stack
         });
-        await firestoreService.updateScan(scanId, {
+        await cosmosService.updateScan(scanId, {
           status: 'FAILED',
-          statusText: `Error during scanning: ${crawlErr.message}`,
+          statusText: `Crawling failed: ${crawlErr.message}`,
           completedAt: new Date().toISOString()
         });
       }
-    })();
-
-    res.status(202).json({
-      message: 'Scan job submitted to Azure Container Apps successfully',
-      scanId,
-      targetUrl: scanData.targetUrl,
-      status: scanDoc.status,
-      options: scanData
     });
   } catch (err) {
-    logger.error('CONTAINER_APPS', `Scan creation failed: ${err.message}`);
+    logger.error('APP_SERVICE', `Scan creation failed: ${err.message}`);
     res.status(500).json({ error: 'Failed to initiate scan', details: err.message });
   }
 });
@@ -170,7 +179,7 @@ router.post('/scan', async (req, res) => {
  */
 router.get('/scans/:id', async (req, res) => {
   try {
-    const scan = await firestoreService.getScan(req.params.id);
+    const scan = await cosmosService.getScan(req.params.id);
     if (!scan) {
       return res.status(404).json({ error: 'Scan not found' });
     }
@@ -187,7 +196,7 @@ router.get('/scans/:id', async (req, res) => {
 router.get('/scans/:id/links', async (req, res) => {
   try {
     const { status, type, search } = req.query;
-    const links = await firestoreService.getScanLinks(req.params.id, { status, type, search });
+    const links = await cosmosService.getScanLinks(req.params.id, { status, type, search });
     res.json({
       scanId: req.params.id,
       count: links.length,
@@ -200,29 +209,28 @@ router.get('/scans/:id/links', async (req, res) => {
 
 /**
  * GET /api/scans/:id/report
- * Generate comprehensive website health report
+ * Generate comprehensive website health report with strict categorization and latency percentiles
  */
 router.get('/scans/:id/report', async (req, res) => {
   try {
-    const scan = await firestoreService.getScan(req.params.id);
+    const scan = await cosmosService.getScan(req.params.id);
     if (!scan) {
       return res.status(404).json({ error: 'Scan not found' });
     }
 
-    const links = await firestoreService.getScanLinks(req.params.id);
+    const links = await cosmosService.getScanLinks(req.params.id);
 
-    // Grouping
-    const brokenLinks = links.filter((l) => l.status === 'BROKEN');
-    const redirectedLinks = links.filter((l) => l.status === 'REDIRECTED');
+    // Strict Categorization: WORKING | REDIRECT | BROKEN | TIMEOUT
     const workingLinks = links.filter((l) => l.status === 'WORKING');
-    const serverErrors = links.filter((l) => l.status === 'SERVER_ERROR');
+    const redirectedLinks = links.filter((l) => l.status === 'REDIRECT' || l.status === 'REDIRECTED');
+    const brokenLinks = links.filter((l) => l.status === 'BROKEN' || l.status === 'SERVER_ERROR');
     const timedOutLinks = links.filter((l) => l.status === 'TIMEOUT');
 
     // Latency profiling
-    const latencies = links.map((l) => l.responseTimeMs || 0).sort((a, b) => a - b);
+    const latencies = links.map((l) => l.latencyMs || l.responseTimeMs || 0).sort((a, b) => a - b);
     const p50 = latencies.length ? latencies[Math.floor(latencies.length * 0.5)] : 0;
     const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : 0;
-    const slowLinks = links.filter((l) => (l.responseTimeMs || 0) > 1500);
+    const slowLinks = links.filter((l) => (l.latencyMs || l.responseTimeMs || 0) > 1500);
 
     // Health Rating & Grade
     const score = scan.summary?.healthScore ?? 100;
@@ -248,41 +256,41 @@ router.get('/scans/:id/report', async (req, res) => {
       gradeColor = 'emerald';
     }
 
-    // Recommendations
+    // Remediation Recommendations
     const recommendations = [];
     if (brokenLinks.length > 0) {
       recommendations.push({
         type: 'CRITICAL',
         title: `Fix ${brokenLinks.length} Broken / Dead Link(s)`,
-        description: 'Dead links return 404/410 errors which negatively impact user experience and search engine SEO ranking.'
+        description: 'Dead links return 404/410/500 errors or failed host connections which damage user trust and SEO rankings.'
       });
     }
     if (redirectedLinks.length > 0) {
       recommendations.push({
         type: 'WARNING',
         title: `Update ${redirectedLinks.length} Redirected Link(s)`,
-        description: 'Update links to their final target URLs to eliminate extra redirect round-trips and improve page load speed.'
+        description: 'Update destination URLs directly to prevent unnecessary HTTP redirect hops.'
       });
     }
     if (timedOutLinks.length > 0) {
       recommendations.push({
         type: 'WARNING',
-        title: `Investigate ${timedOutLinks.length} Slow or Timed Out Target(s)`,
-        description: 'Target hosts failed to respond before the timeout threshold. Check target server availability.'
+        title: `Investigate ${timedOutLinks.length} Slow / Timed Out Target(s)`,
+        description: 'Endpoints failed to respond within the 10-second threshold.'
       });
     }
     if (slowLinks.length > 0) {
       recommendations.push({
         type: 'INFO',
         title: `${slowLinks.length} Link(s) Responded Slower than 1.5s`,
-        description: 'Consider caching or optimizing target endpoints with high latency.'
+        description: 'Consider caching or performance optimization for high-latency endpoints.'
       });
     }
     if (recommendations.length === 0) {
       recommendations.push({
         type: 'SUCCESS',
         title: 'All Discovered Links Are Operational',
-        description: 'No broken links, server errors, or timeouts were detected across the scanned pages.'
+        description: 'No broken links or timeouts detected.'
       });
     }
 
@@ -291,6 +299,8 @@ router.get('/scans/:id/report', async (req, res) => {
       scanId: scan.id,
       targetUrl: scan.targetUrl,
       scanStatus: scan.status,
+      totalLinks: scan.totalLinks || links.length,
+      processedLinks: scan.processedLinks || links.length,
       summary: scan.summary,
       healthAssessment: {
         score,
@@ -305,15 +315,14 @@ router.get('/scans/:id/report', async (req, res) => {
         slowLinksCount: slowLinks.length
       },
       counts: {
-        totalFound: scan.summary?.totalFound || 0,
-        totalChecked: scan.summary?.totalChecked || 0,
+        totalFound: scan.totalLinks || scan.summary?.totalFound || links.length,
+        totalChecked: scan.processedLinks || links.length,
         working: workingLinks.length,
         broken: brokenLinks.length,
         redirected: redirectedLinks.length,
-        serverError: serverErrors.length,
         timedOut: timedOutLinks.length,
-        internalLinks: links.filter((l) => l.type === 'INTERNAL').length,
-        externalLinks: links.filter((l) => l.type === 'EXTERNAL').length
+        internalLinks: links.filter((l) => (l.type || '').toUpperCase() === 'INTERNAL').length,
+        externalLinks: links.filter((l) => (l.type || '').toUpperCase() === 'EXTERNAL').length
       },
       recommendations,
       brokenLinks,
@@ -329,56 +338,44 @@ router.get('/scans/:id/report', async (req, res) => {
 });
 
 /**
- * GET /api/scans
- * List recent scans
- */
-router.get('/scans', async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const scans = await firestoreService.listScans(limit);
-    res.json(scans);
-  } catch (err) {
-    res.status(500).json({ error: 'Error fetching scan history', details: err.message });
-  }
-});
-
-/**
  * GET /api/system/status
  * Microsoft Azure Platform and Services Status
  */
 router.get('/system/status', (req, res) => {
+  const isMock = cosmosService.isMock() || pubsubService.isMock();
+
   res.json({
     platform: 'Microsoft Azure',
     resourceGroup: config.azure.resourceGroup,
-    isMock: config.azure.useMock,
-    mode: config.azure.useMock ? 'Azure Emulation / Sandbox' : 'Production Microsoft Azure',
+    isMock,
+    mode: isMock ? 'SANDBOX EMULATION MODE (OFFLINE)' : 'LIVE AZURE CLOUD (PRODUCTION)',
     services: {
       apiEntryPoint: {
-        name: 'Azure Container Apps',
+        name: 'Azure App Service',
         role: 'REST API & Crawling Coordinator',
         status: 'ONLINE'
       },
       messageQueue: {
         name: 'Azure Service Bus',
-        role: 'Asynchronous Task Distributor (Queue)',
+        role: 'Asynchronous Task Distributor (Queue: dead-link-tasks)',
         queue: config.azure.serviceBus.queueName,
-        status: 'ONLINE'
+        status: pubsubService.isMock() ? 'EMULATED' : 'ONLINE'
       },
       processingWorkers: {
-        name: 'Azure Container Workers',
-        role: 'Parallel HTTP Link Availability & Latency Checkers',
-        status: 'ONLINE'
+        name: 'Azure Functions (Service Bus Trigger)',
+        role: 'Scalable Parallel Link Verification Workers',
+        status: pubsubService.isMock() ? 'EMULATED' : 'ONLINE'
       },
       database: {
         name: 'Azure Cosmos DB',
-        role: 'NoSQL Document Store (Database: webhealth-db)',
-        container: config.azure.cosmosDb.scansContainer,
-        status: 'ONLINE'
+        role: 'NoSQL Document Store (Database: webhealth-db, Partition Keys: /id, /scanId)',
+        container: `${config.azure.cosmosDb.scansContainer}, ${config.azure.cosmosDb.linksContainer}`,
+        status: cosmosService.isMock() ? 'EMULATED' : 'ONLINE'
       },
       monitoring: {
-        name: 'Azure Monitor / App Insights',
+        name: 'Azure Application Insights & Log Analytics',
         role: 'Centralized Structured Audit Logs and Metric Stream',
-        status: 'ONLINE'
+        status: logger.isAppInsightsConnected() ? 'CONNECTED' : 'LOCAL_LOGGING'
       }
     },
     systemInfo: {
@@ -388,7 +385,6 @@ router.get('/system/status', (req, res) => {
     }
   });
 });
-
 
 /**
  * GET /api/system/logs

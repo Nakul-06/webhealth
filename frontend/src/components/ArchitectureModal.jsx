@@ -22,10 +22,10 @@ export default function ArchitectureModal({ isOpen, onClose }) {
           </div>
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">
-              Cloud Microservice Architecture
+              Microsoft Azure Decoupled Architecture
             </h2>
             <p className="text-xs text-slate-400">
-              Decoupled, event-driven link crawling and parallel availability verification
+              Event-driven link crawling and parallel availability verification using Azure App Service, Service Bus & Functions
             </p>
           </div>
         </div>
@@ -38,32 +38,32 @@ export default function ArchitectureModal({ isOpen, onClose }) {
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 text-center text-xs">
             <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl w-full md:w-auto flex-1">
               <span className="text-[10px] text-slate-500 uppercase font-bold block">Phase 1</span>
-              <span className="font-bold text-white">Web Client</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Submits URL & views live audit</p>
+              <span className="font-bold text-white">Web Frontend</span>
+              <p className="text-[10px] text-slate-400 mt-0.5">React SPA on App Service</p>
             </div>
             <ArrowRight className="w-4 h-4 text-sky-500 hidden md:block" />
             <div className="p-3 bg-slate-900 border border-sky-500/40 rounded-xl w-full md:w-auto flex-1">
               <span className="text-[10px] text-sky-400 uppercase font-bold block">Phase 2</span>
               <span className="font-bold text-sky-300">API & Crawler</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Discovers & extracts anchor links</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">SSRF Guard + Cheerio Crawler</p>
             </div>
             <ArrowRight className="w-4 h-4 text-sky-500 hidden md:block" />
             <div className="p-3 bg-slate-900 border border-amber-500/40 rounded-xl w-full md:w-auto flex-1">
               <span className="text-[10px] text-amber-400 uppercase font-bold block">Phase 3</span>
-              <span className="font-bold text-amber-300">Message Queue</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Distributes async verification tasks</p>
+              <span className="font-bold text-amber-300">Azure Service Bus</span>
+              <p className="text-[10px] text-slate-400 mt-0.5">Queue: dead-link-tasks (DLQ=5)</p>
             </div>
             <ArrowRight className="w-4 h-4 text-sky-500 hidden md:block" />
             <div className="p-3 bg-slate-900 border border-cyan-500/40 rounded-xl w-full md:w-auto flex-1">
               <span className="text-[10px] text-cyan-400 uppercase font-bold block">Phase 4</span>
-              <span className="font-bold text-cyan-300">Parallel Workers</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Checks HTTP HEAD/GET & latency</p>
+              <span className="font-bold text-cyan-300">Azure Functions</span>
+              <p className="text-[10px] text-slate-400 mt-0.5">Service Bus Trigger Workers</p>
             </div>
             <ArrowRight className="w-4 h-4 text-sky-500 hidden md:block" />
             <div className="p-3 bg-slate-900 border border-orange-500/40 rounded-xl w-full md:w-auto flex-1">
               <span className="text-[10px] text-orange-400 uppercase font-bold block">Phase 5</span>
-              <span className="font-bold text-orange-300">NoSQL Database</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Stores scan & link records</p>
+              <span className="font-bold text-orange-300">Azure Cosmos DB</span>
+              <p className="text-[10px] text-slate-400 mt-0.5">PK: /id & /scanId (NoSQL)</p>
             </div>
           </div>
         </div>
@@ -79,59 +79,81 @@ export default function ArchitectureModal({ isOpen, onClose }) {
                 <tr>
                   <th className="py-2.5 px-4 border-b border-slate-800">System Component</th>
                   <th className="py-2.5 px-4 border-b border-slate-800 text-sky-400">Deployed Cloud Service</th>
-                  <th className="py-2.5 px-4 border-b border-slate-800 text-slate-300">Operational Role & Concurrency</th>
+                  <th className="py-2.5 px-4 border-b border-slate-800 text-slate-300">Operational Role & Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono text-slate-300">
                 <tr>
                   <td className="py-2 px-4 font-sans font-medium text-slate-400">API & Web Crawler</td>
-                  <td className="py-2 px-4 text-sky-300 font-bold">Azure App Service / Container Apps</td>
-                  <td className="py-2 px-4 font-sans text-slate-400">Coordinates crawling, extracts anchor tags, strips hash anchors & dispatches jobs</td>
+                  <td className="py-2 px-4 text-sky-300 font-bold">Azure App Service (Linux Node 20)</td>
+                  <td className="py-2 px-4 font-sans text-slate-400">Hosts React UI & API; validates target URLs with SSRF Guard, crawls internal pages & creates scan jobs</td>
                 </tr>
                 <tr>
                   <td className="py-2 px-4 font-sans font-medium text-slate-400">Task Message Queue</td>
-                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Service Bus Queue</td>
-                  <td className="py-2 px-4 font-sans text-slate-400">Decouples crawling from link checks; buffers high-volume URL tasks asynchronously</td>
+                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Service Bus</td>
+                  <td className="py-2 px-4 font-sans text-slate-400">Queue: <code>dead-link-tasks</code>. Max delivery count: 5 with Dead-Letter Queue (DLQ) enabled for unhandled errors</td>
                 </tr>
                 <tr>
                   <td className="py-2 px-4 font-sans font-medium text-slate-400">Parallel Workers</td>
-                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Container Workers</td>
-                  <td className="py-2 px-4 font-sans text-slate-400">Executes concurrent HTTP HEAD probes with streaming GET fallbacks & latency timing</td>
+                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Functions (Consumption)</td>
+                  <td className="py-2 px-4 font-sans text-slate-400">Independent serverless worker triggered by Service Bus; probes HTTP HEAD/GET, captures latency, upserts idempotently</td>
                 </tr>
                 <tr>
-                  <td className="py-2 px-4 font-sans font-medium text-slate-400">NoSQL Document Store</td>
-                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Cosmos DB</td>
-                  <td className="py-2 px-4 font-sans text-slate-400">Low-latency JSON store partitioned by scanId, maintaining scan records & link audit logs</td>
+                  <td className="py-2 px-4 font-sans font-medium text-slate-400">Database Engine</td>
+                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Cosmos DB (NoSQL API)</td>
+                  <td className="py-2 px-4 font-sans text-slate-400">Database: <code>webhealth-db</code>. Container <code>scans</code> (PK: <code>/id</code>) & container <code>links</code> (PK: <code>/scanId</code>)</td>
                 </tr>
                 <tr>
-                  <td className="py-2 px-4 font-sans font-medium text-slate-400">Telemetry & Audit</td>
-                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Monitor & App Insights</td>
-                  <td className="py-2 px-4 font-sans text-slate-400">Structured real-time event streaming, error tracking, and worker latency diagnostics</td>
+                  <td className="py-2 px-4 font-sans font-medium text-slate-400">Telemetry & Logs</td>
+                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Application Insights & Log Analytics</td>
+                  <td className="py-2 px-4 font-sans text-slate-400">End-to-end telemetry, custom dimensions (<code>scanId</code>, <code>latencyMs</code>), alert on dead-letter count &gt; 0</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-4 font-sans font-medium text-slate-400">Secrets Management</td>
+                  <td className="py-2 px-4 text-sky-300 font-bold">Azure Key Vault</td>
+                  <td className="py-2 px-4 font-sans text-slate-400">Stores Cosmos DB keys and Service Bus connection strings securely via Key Vault references</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Key Architectural Highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-            <span className="font-bold text-white block mb-1">Non-Blocking Architecture</span>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
-              Decoupling link discovery from verification eliminates gateway timeouts when scanning pages with hundreds of URLs.
-            </p>
-          </div>
-          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-            <span className="font-bold text-white block mb-1">Lightweight HTTP Probing</span>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
-              Issues HTTP HEAD requests first to minimize data transfer, with automatic GET streaming fallback when required.
-            </p>
-          </div>
-          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-            <span className="font-bold text-white block mb-1">Health Score Metric</span>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
-              Dynamically computes overall availability percentage and delivers automated SEO and performance remediation.
-            </p>
+        {/* Cloud Comparison Table */}
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3">
+            Multi-Cloud Architectural Mapping
+          </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+              <span className="text-sky-400 font-bold block mb-1">Microsoft Azure (Current)</span>
+              <ul className="text-[11px] text-slate-400 space-y-1">
+                <li>• API: Azure App Service</li>
+                <li>• Compute: Azure Functions (Workers)</li>
+                <li>• Queue: Azure Service Bus</li>
+                <li>• Database: Azure Cosmos DB</li>
+                <li>• Logs: Application Insights</li>
+              </ul>
+            </div>
+            <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+              <span className="text-amber-400 font-bold block mb-1">Amazon Web Services (AWS)</span>
+              <ul className="text-[11px] text-slate-400 space-y-1">
+                <li>• API: API Gateway / App Runner</li>
+                <li>• Compute: AWS Lambda Workers</li>
+                <li>• Queue: Amazon SQS (Dead-Letter)</li>
+                <li>• Database: Amazon DynamoDB</li>
+                <li>• Logs: Amazon CloudWatch</li>
+              </ul>
+            </div>
+            <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+              <span className="text-emerald-400 font-bold block mb-1">Google Cloud Platform (GCP)</span>
+              <ul className="text-[11px] text-slate-400 space-y-1">
+                <li>• API: Cloud Run (Web API)</li>
+                <li>• Compute: Cloud Run Workers</li>
+                <li>• Queue: Cloud Pub/Sub</li>
+                <li>• Database: Cloud Firestore</li>
+                <li>• Logs: Cloud Logging</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>

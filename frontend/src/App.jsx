@@ -10,7 +10,7 @@ import LinksTable from './components/LinksTable';
 import CloudLogsDrawer from './components/CloudLogsDrawer';
 import ArchitectureModal from './components/ArchitectureModal';
 import ExportModal from './components/ExportModal';
-import { Activity, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw, Cpu, Database } from 'lucide-react';
+import { Activity, ShieldCheck, CheckCircle2, AlertCircle, AlertTriangle, RefreshCw, Cpu, Database } from 'lucide-react';
 
 export default function App() {
   const [systemStatus, setSystemStatus] = useState(null);
@@ -107,9 +107,11 @@ export default function App() {
     }
   };
 
+  const totalToVerify = scan?.totalLinks || scan?.summary?.totalFound || 0;
+  const totalVerified = scan?.processedLinks || scan?.summary?.totalChecked || 0;
   const progressPercentage =
-    scan?.summary?.totalFound > 0
-      ? Math.min(100, Math.round(((scan?.summary?.totalChecked || 0) / scan.summary.totalFound) * 100))
+    totalToVerify > 0
+      ? Math.min(100, Math.round((totalVerified / totalToVerify) * 100))
       : scan?.status === 'CRAWLING'
       ? 20
       : 0;
@@ -122,6 +124,47 @@ export default function App() {
         onOpenArch={() => setIsArchOpen(true)}
         systemStatus={systemStatus}
       />
+
+      {/* Cloud Environment Mode Banner */}
+      {systemStatus && (
+        <div
+          className={`border-b px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 ${
+            systemStatus.isMock
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            {systemStatus.isMock ? (
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            ) : (
+              <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            )}
+            <span className="font-bold tracking-wide">
+              {systemStatus.isMock
+                ? 'SANDBOX EMULATION MODE (OFFLINE DEMO)'
+                : 'LIVE MICROSOFT AZURE CLOUD (PRODUCTION)'}
+            </span>
+            <span className="opacity-80 hidden md:inline">
+              {systemStatus.isMock
+                ? '— In-memory NoSQL document store & local parallel worker active for instant local testing.'
+                : `— Connected to Azure Service Bus (${systemStatus.services?.messageQueue?.queue}) & Cosmos DB (webhealth-db).`}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2 font-mono text-[11px]">
+            <span
+              className={`px-2 py-0.5 rounded border ${
+                systemStatus.isMock
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                  : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+              }`}
+            >
+              Workers: {systemStatus.services?.processingWorkers?.name || 'Azure Functions'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -153,7 +196,7 @@ export default function App() {
                 </span>
               </div>
               <span className="font-mono text-blue-400 font-semibold">
-                {scan.summary?.totalChecked || 0} / {scan.summary?.totalFound || '?'} verified ({progressPercentage}%)
+                {totalVerified} / {totalToVerify || '?'} verified ({progressPercentage}%)
               </span>
             </div>
 
@@ -165,7 +208,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-slate-400">
-              <span>Task distributed to Azure Container Workers via Azure Service Bus</span>
+              <span>Task distributed to Azure Functions Workers via Azure Service Bus</span>
               <span className="font-mono text-slate-500">Job ID: {activeScanId?.slice(0, 8)}</span>
             </div>
           </div>
@@ -180,15 +223,24 @@ export default function App() {
             {/* Health Score + Automated Recommendations Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <HealthScoreCard
-                healthAssessment={report?.healthAssessment || {
-                  score: scan.summary?.healthScore || 100,
-                  grade: scan.summary?.healthScore >= 90 ? 'A+' : scan.summary?.healthScore >= 75 ? 'A' : 'B',
-                  gradeText: scan.statusText
-                }}
-                latencyMetrics={report?.latencyMetrics || {
-                  avgResponseTimeMs: scan.summary?.avgResponseTimeMs || 0,
-                  p95Ms: scan.summary?.avgResponseTimeMs || 0
-                }}
+                healthAssessment={
+                  report?.healthAssessment || {
+                    score: scan.summary?.healthScore || 100,
+                    grade:
+                      (scan.summary?.healthScore || 100) >= 90
+                        ? 'A+'
+                        : (scan.summary?.healthScore || 100) >= 75
+                        ? 'A'
+                        : 'B',
+                    gradeText: scan.statusText
+                  }
+                }
+                latencyMetrics={
+                  report?.latencyMetrics || {
+                    avgResponseTimeMs: scan.summary?.avgResponseTimeMs || 0,
+                    p95Ms: scan.summary?.avgResponseTimeMs || 0
+                  }
+                }
                 isCompleted={scan.status === 'COMPLETED'}
               />
 
@@ -198,78 +250,50 @@ export default function App() {
                     {
                       type: 'INFO',
                       title: 'Live Scan in Progress',
-                      description: 'Link results are actively streamed into Azure Cosmos DB. Comprehensive report will finalize once all workers acknowledge.'
+                      description: 'Distributed Azure Functions workers are actively probing endpoints and compiling metrics.'
                     }
                   ]
                 }
               />
             </div>
 
-            {/* Horizontal Distribution Bar */}
-            <StatusDistributionBar summary={scan.summary} />
+            {/* Status Distribution Progress Bar */}
+            <StatusDistributionBar
+              summary={scan.summary}
+              totalChecked={totalVerified}
+            />
 
-            {/* Interactive Verified Links Table */}
+            {/* Verified Links Table */}
             <LinksTable
               links={links}
-              onExportReport={() => setIsExportOpen(true)}
+              onExport={() => setIsExportOpen(true)}
+              isCompleted={scan.status === 'COMPLETED'}
             />
-          </div>
-        )}
-
-        {/* Empty State Banner if no scan has been initiated yet */}
-        {!scan && !isLoading && (
-          <div className="text-center py-16 px-4 rounded-3xl border border-dashed border-slate-800 bg-slate-900/30">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-4">
-              <Activity className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Ready to Monitor Website Health</h3>
-            <p className="text-sm text-slate-400 max-w-md mx-auto mb-6">
-              Enter any website URL above or launch the built-in testbed to observe the live distributed detection pipeline.
-            </p>
-            <button
-              onClick={() => handleStartScan({ url: (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080') + '/api/test-site', maxDepth: 1, maxLinks: 20 })}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-sky-500/20 transition"
-            >
-              <span>Launch Demo Evaluation Scan</span>
-            </button>
           </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center space-x-2">
-            <span className="font-bold text-slate-300">WebHealth</span>
-            <span>&bull;</span>
-            <span>Cloud-Native Dead Link Detection &amp; Website Health Monitoring</span>
-          </div>
-          <div className="flex items-center space-x-3 text-slate-400">
-            <span>Production Grade</span>
-            <span>&bull;</span>
-            <span>Multi-Worker Pipeline</span>
-            <span>&bull;</span>
-            <span>REST API &amp; Telemetry</span>
-          </div>
-        </div>
-      </footer>
-
-      {/* Modals & Drawers */}
+      {/* Cloud Logs Drawer */}
       <CloudLogsDrawer
         isOpen={isLogsOpen}
         onClose={() => setIsLogsOpen(false)}
       />
 
+      {/* Architecture Modal */}
       <ArchitectureModal
         isOpen={isArchOpen}
         onClose={() => setIsArchOpen(false)}
       />
 
-      <ExportModal
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        reportData={report}
-      />
+      {/* Export Report Modal */}
+      {report && (
+        <ExportModal
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+          report={report}
+          scan={scan}
+        />
+      )}
     </div>
   );
 }
