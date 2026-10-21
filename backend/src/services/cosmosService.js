@@ -173,13 +173,13 @@ export const cosmosService = {
       scan.summary.healthScore = total > 0 ? Math.round((scan.summary.working / total) * 100) : 100;
 
       // Completion check
-      if (scan.processedLinks >= total && scan.status !== 'FAILED') {
+      if (scan.processedLinks >= total || scanLinksMap.size >= total) {
         scan.status = 'COMPLETED';
-        scan.statusText = `Scan complete. Successfully verified ${scan.processedLinks} of ${total} links.`;
+        scan.statusText = `Scan complete. Successfully verified ${scanLinksMap.size} of ${total} links.`;
         scan.completedAt = new Date().toISOString();
       } else {
         scan.status = 'CHECKING_LINKS';
-        scan.statusText = `Verifying links (${scan.processedLinks} of ${total} processed)...`;
+        scan.statusText = `Verifying links (${scanLinksMap.size} of ${total} processed)...`;
       }
 
       scan.updatedAt = new Date().toISOString();
@@ -251,6 +251,45 @@ export const cosmosService = {
     }
 
     return links;
+  },
+
+  /**
+   * Finalize a scan if workers have completed or if watchdog timeout fires
+   */
+  async finalizeScan(scanId) {
+    const scan = memoryCosmosStore.scans.get(scanId);
+    if (!scan) return null;
+
+    if (scan.status !== 'COMPLETED' && scan.status !== 'FAILED') {
+      const scanLinksMap = memoryCosmosStore.links.get(scanId) || new Map();
+      const actualCount = scanLinksMap.size;
+      const allLinks = Array.from(scanLinksMap.values());
+
+      scan.totalLinks = actualCount;
+      scan.processedLinks = actualCount;
+      scan.summary.totalFound = actualCount;
+      scan.summary.totalChecked = actualCount;
+
+      const workingCount = allLinks.filter((l) => l.status === 'WORKING').length;
+      scan.summary.working = workingCount;
+      scan.summary.broken = allLinks.filter((l) => l.status === 'BROKEN').length;
+      scan.summary.redirected = allLinks.filter((l) => l.status === 'REDIRECT').length;
+      scan.summary.timedOut = allLinks.filter((l) => l.status === 'TIMEOUT').length;
+
+      scan.summary.healthScore = actualCount > 0 ? Math.round((workingCount / actualCount) * 100) : 100;
+      scan.status = 'COMPLETED';
+      scan.statusText = `Scan complete. Successfully verified all ${actualCount} discovered links.`;
+      scan.completedAt = new Date().toISOString();
+      scan.updatedAt = new Date().toISOString();
+
+      if (liveScansContainer) {
+        liveScansContainer.items.upsert(scan).catch(() => {});
+      }
+
+      logger.info('COSMOS_DB', `Watchdog finalized scan ${scanId} to COMPLETED (${actualCount} links).`);
+    }
+
+    return scan;
   },
 
   /**

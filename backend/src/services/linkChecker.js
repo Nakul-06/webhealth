@@ -7,10 +7,60 @@ const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 export const linkChecker = {
   /**
-   * Check a single URL's availability and measure latency with high accuracy
-   * Returns status: 'WORKING' | 'BROKEN' | 'REDIRECT' | 'TIMEOUT'
+   * Check a single URL's availability with a strict 6-second hard-timeout race
    */
-  async check(linkItem) {
+  async check(linkItem, maxWaitMs = 6000) {
+    let timer;
+    const timeoutPromise = new Promise((resolve) => {
+      timer = setTimeout(() => {
+        resolve({
+          id: linkItem.id,
+          scanId: linkItem.scanId,
+          url: linkItem.url,
+          anchorText: linkItem.anchorText || '',
+          parentUrl: linkItem.parentUrl || '',
+          type: linkItem.type || 'internal',
+          status: 'TIMEOUT',
+          statusCode: 408,
+          statusMessage: `Probe hard-timeout exceeded (${maxWaitMs}ms)`,
+          redirectUrl: null,
+          contentType: null,
+          latencyMs: maxWaitMs,
+          responseTimeMs: maxWaitMs,
+          checkedAt: new Date().toISOString()
+        });
+      }, maxWaitMs);
+    });
+
+    try {
+      const result = await Promise.race([this.performCheck(linkItem), timeoutPromise]);
+      clearTimeout(timer);
+      return result;
+    } catch (err) {
+      clearTimeout(timer);
+      return {
+        id: linkItem.id,
+        scanId: linkItem.scanId,
+        url: linkItem.url,
+        anchorText: linkItem.anchorText || '',
+        parentUrl: linkItem.parentUrl || '',
+        type: linkItem.type || 'internal',
+        status: 'BROKEN',
+        statusCode: 0,
+        statusMessage: err.message || 'Connection error',
+        redirectUrl: null,
+        contentType: null,
+        latencyMs: 1000,
+        responseTimeMs: 1000,
+        checkedAt: new Date().toISOString()
+      };
+    }
+  },
+
+  /**
+   * Internal probe routine
+   */
+  async performCheck(linkItem) {
     const url = linkItem.url;
     const startTime = Date.now();
     const timeout = config.crawler.requestTimeoutMs || 10000;

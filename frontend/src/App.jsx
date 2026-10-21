@@ -107,10 +107,12 @@ export default function App() {
     }
   };
 
-  const totalToVerify = scan?.totalLinks || scan?.summary?.totalFound || 0;
-  const totalVerified = scan?.processedLinks || scan?.summary?.totalChecked || 0;
+  const totalToVerify = scan?.totalLinks || scan?.summary?.totalFound || links.length || 0;
+  const totalVerified = scan?.processedLinks || scan?.summary?.totalChecked || links.length || 0;
   const progressPercentage =
-    totalToVerify > 0
+    scan?.status === 'COMPLETED'
+      ? 100
+      : totalToVerify > 0
       ? Math.min(100, Math.round((totalVerified / totalToVerify) * 100))
       : scan?.status === 'CRAWLING'
       ? 20

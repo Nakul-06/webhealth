@@ -55,24 +55,49 @@ class AzureWorkerQueue {
 
   async executeTask(task) {
     const { scanId, linkItem } = task;
-    logger.info('WORKER', `[Sandbox Worker] Verifying link: ${linkItem.url}`, {
+    logger.info('WORKER', `[Azure Worker] Verifying link: ${linkItem.url}`, {
       scanId,
       linkId: linkItem.id,
       type: linkItem.type
     });
 
-    const result = await linkChecker.check(linkItem);
-    await databaseService.addLinkResult(scanId, result);
+    try {
+      const result = await linkChecker.check(linkItem);
+      await databaseService.addLinkResult(scanId, result);
 
-    logger.info('COSMOS_DB', `Saved verification result: ${linkItem.url} -> [${result.status}]`, {
-      scanId,
-      status: result.status,
-      latency: result.responseTimeMs
-    });
+      logger.info('COSMOS_DB', `Saved verification result: ${linkItem.url} -> [${result.status}]`, {
+        scanId,
+        status: result.status,
+        latency: result.responseTimeMs
+      });
+    } catch (err) {
+      logger.error('WORKER', `Worker failed on ${linkItem.url}: ${err.message}`);
+      await databaseService.addLinkResult(scanId, {
+        id: linkItem.id,
+        scanId,
+        url: linkItem.url,
+        anchorText: linkItem.anchorText || '',
+        parentUrl: linkItem.parentUrl || '',
+        type: linkItem.type || 'internal',
+        status: 'TIMEOUT',
+        statusCode: 408,
+        statusMessage: `Worker error: ${err.message}`,
+        latencyMs: 6000,
+        responseTimeMs: 6000,
+        checkedAt: new Date().toISOString()
+      });
+    }
+
+    // Auto-finalize when queue is drained
+    if (this.queue.length === 0 && this.activeWorkers <= 1) {
+      setTimeout(() => {
+        databaseService.finalizeScan(scanId).catch(() => {});
+      }, 800);
+    }
   }
 }
 
-const workerQueue = new AzureWorkerQueue(6);
+const workerQueue = new AzureWorkerQueue(10);
 
 export const queueService = {
   isMock: () => !liveSbSender,

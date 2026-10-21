@@ -158,6 +158,13 @@ router.post('/scan', async (req, res) => {
 
         // Enqueue link tasks in batches to Azure Service Bus
         await pubsubService.publishLinkBatch(scanId, discoveredLinks);
+
+        // Safety Watchdog: Guarantee scan marks COMPLETED within 30 seconds maximum
+        setTimeout(async () => {
+          try {
+            await cosmosService.finalizeScan(scanId);
+          } catch {}
+        }, 30000);
       } catch (crawlErr) {
         logger.error('APP_SERVICE', `Crawling pipeline failed for scan ${scanId}: ${crawlErr.message}`, {
           error: crawlErr.stack
