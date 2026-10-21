@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Play, Settings2, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Play, Settings2, Sparkles, AlertCircle, RefreshCw, Layers } from 'lucide-react';
 
 export default function ScanInput({ onStartScan, isLoading }) {
   const [url, setUrl] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
-  const [maxLinks, setMaxLinks] = useState(40);
+  const [maxLinks, setMaxLinks] = useState(50);
   const [showOptions, setShowOptions] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -39,6 +39,13 @@ export default function ScanInput({ onStartScan, isLoading }) {
     setMaxLinks(links);
     setValidationError('');
   };
+
+  const linkLimitOptions = [
+    { label: 'Fast (20)', value: 20 },
+    { label: 'Standard (50)', value: 50 },
+    { label: 'Deep (100)', value: 100 },
+    { label: 'Full Site (200)', value: 200 }
+  ];
 
   return (
     <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
@@ -109,8 +116,38 @@ export default function ScanInput({ onStartScan, isLoading }) {
           </div>
         )}
 
+        {/* Scan Limits & Scope Selector */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
+          <div className="flex items-center space-x-2">
+            <span className="text-slate-400 font-medium flex items-center space-x-1">
+              <Layers className="w-3.5 h-3.5 text-sky-400" />
+              <span>Audit Scope:</span>
+            </span>
+            <div className="flex items-center space-x-1">
+              {linkLimitOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setMaxLinks(opt.value)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                    maxLinks === opt.value
+                      ? 'bg-sky-600 text-white font-semibold shadow-sm'
+                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 border border-slate-700/60'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-[11px] text-slate-500">
+            Scanning up to <span className="font-mono text-sky-400 font-bold">{maxLinks}</span> links (sites with fewer links check all)
+          </div>
+        </div>
+
         {/* Quick Presets */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800/80">
           <span className="text-xs text-slate-400 font-medium">Quick Presets:</span>
           <button
             type="button"
@@ -141,18 +178,18 @@ export default function ScanInput({ onStartScan, isLoading }) {
           <div className="pt-4 border-t border-slate-700/60 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Max Links to Check: <span className="text-sky-400 font-mono">{maxLinks}</span>
+                Custom Max Links: <span className="text-sky-400 font-mono">{maxLinks}</span>
               </label>
               <input
                 type="range"
                 min="5"
-                max="100"
+                max="250"
                 step="5"
                 value={maxLinks}
-                onChange={(e) => setMaxLinks(e.target.value)}
+                onChange={(e) => setMaxLinks(Number(e.target.value))}
                 className="w-full accent-sky-500 cursor-pointer"
               />
-              <span className="text-[11px] text-slate-400">Controls worker task batch size</span>
+              <span className="text-[11px] text-slate-400">Range: 5 to 250 links per scan</span>
             </div>
 
             <div>

@@ -143,6 +143,13 @@ router.post('/scan', async (req, res) => {
           });
         }
 
+        // Check if scan was already stopped by user before publishing tasks
+        const currentScan = await cosmosService.getScan(scanId);
+        if (currentScan?.status === 'STOPPED') {
+          logger.info('APP_SERVICE', `Scan ${scanId} was stopped by user during crawl. Aborting task dispatch.`);
+          return;
+        }
+
         // Set totalLinks and update state to CHECKING_LINKS
         await cosmosService.updateScan(scanId, {
           status: 'CHECKING_LINKS',
@@ -179,6 +186,37 @@ router.post('/scan', async (req, res) => {
   } catch (err) {
     logger.error('APP_SERVICE', `Scan creation failed: ${err.message}`);
     res.status(500).json({ error: 'Failed to initiate scan', details: err.message });
+  }
+});
+
+/**
+ * POST /api/scans/:id/stop
+ * Allows user to gracefully stop an in-progress scan at any moment
+ */
+router.post('/scans/:id/stop', async (req, res) => {
+  try {
+    const scanId = req.params.id;
+    logger.info('APP_SERVICE', `Stop requested by user for scan: ${scanId}`);
+
+    // 1. Drain / cancel remaining queued worker tasks
+    pubsubService.cancelScan(scanId);
+
+    // 2. Finalize scan document with whatever links were verified so far
+    const finalized = await cosmosService.finalizeScan(scanId, 'STOPPED');
+    if (!finalized) {
+      return res.status(404).json({ error: 'Scan not found' });
+    }
+
+    res.json({
+      message: 'Scan stopped successfully by user',
+      scanId,
+      status: finalized.status,
+      summary: finalized.summary,
+      scan: finalized
+    });
+  } catch (err) {
+    logger.error('APP_SERVICE', `Failed to stop scan: ${err.message}`);
+    res.status(500).json({ error: 'Failed to stop scan', details: err.message });
   }
 });
 

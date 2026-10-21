@@ -10,7 +10,7 @@ import LinksTable from './components/LinksTable';
 import CloudLogsDrawer from './components/CloudLogsDrawer';
 import ArchitectureModal from './components/ArchitectureModal';
 import ExportModal from './components/ExportModal';
-import { Activity, ShieldCheck, CheckCircle2, AlertCircle, AlertTriangle, RefreshCw, Cpu, Database } from 'lucide-react';
+import { Activity, ShieldCheck, CheckCircle2, AlertCircle, AlertTriangle, RefreshCw, Cpu, Database, Square } from 'lucide-react';
 
 export default function App() {
   const [systemStatus, setSystemStatus] = useState(null);
@@ -107,6 +107,29 @@ export default function App() {
     }
   };
 
+  // Stop / Cancel active scan handler
+  const handleStopScan = async () => {
+    if (!activeScanId) return;
+    try {
+      const res = await fetch(`/api/scans/${activeScanId}/stop`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setScan(data.scan || { ...scan, status: 'STOPPED', statusText: 'Scan stopped by user' });
+        setIsLoading(false);
+        const reportRes = await fetch(`/api/scans/${activeScanId}/report`);
+        if (reportRes.ok) {
+          const reportData = await reportRes.json();
+          setReport(reportData);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to stop scan:', err);
+      setIsLoading(false);
+    }
+  };
+
   const totalToVerify = scan?.totalLinks || scan?.summary?.totalFound || links.length || 0;
   const totalVerified = scan?.processedLinks || scan?.summary?.totalChecked || links.length || 0;
   const progressPercentage =
@@ -179,9 +202,20 @@ export default function App() {
                   {scan.statusText || 'Distributed Workers processing...'}
                 </span>
               </div>
-              <span className="font-mono text-blue-400 font-semibold">
-                {totalVerified} / {totalToVerify || '?'} verified ({progressPercentage}%)
-              </span>
+              <div className="flex items-center space-x-3">
+                <span className="font-mono text-blue-400 font-semibold">
+                  {totalVerified} / {totalToVerify || '?'} verified ({progressPercentage}%)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleStopScan}
+                  className="flex items-center space-x-1.5 px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-bold transition shadow-sm"
+                  title="Stop scan now and generate report with current results"
+                >
+                  <Square className="w-3 h-3 fill-current" />
+                  <span>Stop Scan</span>
+                </button>
+              </div>
             </div>
 
             <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700/60 p-0.5">

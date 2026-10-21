@@ -254,13 +254,13 @@ export const cosmosService = {
   },
 
   /**
-   * Finalize a scan if workers have completed or if watchdog timeout fires
+   * Finalize a scan if workers have completed, if stopped by user, or if watchdog timeout fires
    */
-  async finalizeScan(scanId) {
+  async finalizeScan(scanId, customStatus = 'COMPLETED') {
     const scan = memoryCosmosStore.scans.get(scanId);
     if (!scan) return null;
 
-    if (scan.status !== 'COMPLETED' && scan.status !== 'FAILED') {
+    if (scan.status !== 'COMPLETED' && scan.status !== 'FAILED' && scan.status !== 'STOPPED') {
       const scanLinksMap = memoryCosmosStore.links.get(scanId) || new Map();
       const actualCount = scanLinksMap.size;
       const allLinks = Array.from(scanLinksMap.values());
@@ -277,8 +277,11 @@ export const cosmosService = {
       scan.summary.timedOut = allLinks.filter((l) => l.status === 'TIMEOUT').length;
 
       scan.summary.healthScore = actualCount > 0 ? Math.round((workingCount / actualCount) * 100) : 100;
-      scan.status = 'COMPLETED';
-      scan.statusText = `Scan complete. Successfully verified all ${actualCount} discovered links.`;
+      scan.status = customStatus;
+      scan.statusText =
+        customStatus === 'STOPPED'
+          ? `Scan stopped by user. Evaluated ${actualCount} verified links.`
+          : `Scan complete. Successfully verified all ${actualCount} discovered links.`;
       scan.completedAt = new Date().toISOString();
       scan.updatedAt = new Date().toISOString();
 
@@ -286,7 +289,7 @@ export const cosmosService = {
         liveScansContainer.items.upsert(scan).catch(() => {});
       }
 
-      logger.info('COSMOS_DB', `Watchdog finalized scan ${scanId} to COMPLETED (${actualCount} links).`);
+      logger.info('COSMOS_DB', `Scan ${scanId} finalized with status ${customStatus} (${actualCount} links).`);
     }
 
     return scan;

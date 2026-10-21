@@ -35,6 +35,12 @@ class AzureWorkerQueue {
     this.processNext();
   }
 
+  cancelTasksForScan(scanId) {
+    const initial = this.queue.length;
+    this.queue = this.queue.filter((t) => t.scanId !== scanId);
+    return initial - this.queue.length;
+  }
+
   async processNext() {
     if (this.activeWorkers >= this.concurrency || this.queue.length === 0) {
       return;
@@ -162,6 +168,10 @@ export const queueService = {
 
   async publishLinkTask(scanId, linkItem) {
     return this.publishLinkBatch(scanId, [linkItem]);
+  },
+
+  cancelScan(scanId) {
+    return workerQueue.cancelTasksForScan(scanId);
   }
 };
 
