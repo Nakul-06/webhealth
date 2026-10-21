@@ -115,7 +115,30 @@ export const cosmosService = {
   async updateScan(scanId, updateFields) {
     const updatedAt = new Date().toISOString();
     const existing = memoryCosmosStore.scans.get(scanId) || {};
-    const updated = { ...existing, ...updateFields, updatedAt };
+    const updated = { ...existing };
+
+    for (const [key, value] of Object.entries(updateFields)) {
+      if (key.includes('.')) {
+        const parts = key.split('.');
+        let curr = updated;
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!curr[parts[i]]) curr[parts[i]] = {};
+          curr = curr[parts[i]];
+        }
+        curr[parts[parts.length - 1]] = value;
+      } else if (key === 'summary' && typeof value === 'object' && value !== null) {
+        updated.summary = { ...(existing.summary || {}), ...value };
+      } else {
+        updated[key] = value;
+      }
+    }
+
+    if (updated.totalLinks && (!updated.summary?.totalFound || updated.summary.totalFound === 0)) {
+      if (!updated.summary) updated.summary = {};
+      updated.summary.totalFound = updated.totalLinks;
+    }
+
+    updated.updatedAt = updatedAt;
     memoryCosmosStore.scans.set(scanId, updated);
 
     if (liveScansContainer) {
@@ -153,11 +176,15 @@ export const cosmosService = {
     if (scan && isNewLink) {
       scan.processedLinks = (scan.processedLinks || 0) + 1;
       scan.summary.totalChecked = scan.processedLinks;
+      if (!scan.summary.totalFound || scan.summary.totalFound === 0) {
+        scan.summary.totalFound = scan.totalLinks || scan.processedLinks;
+      }
 
       if (linkResult.status === 'WORKING') scan.summary.working++;
-      else if (linkResult.status === 'REDIRECT') scan.summary.redirected++;
+      else if (linkResult.status === 'REDIRECT' || linkResult.status === 'REDIRECTED') scan.summary.redirected++;
       else if (linkResult.status === 'BROKEN') scan.summary.broken++;
       else if (linkResult.status === 'TIMEOUT') scan.summary.timedOut++;
+      else if (linkResult.status === 'SERVER_ERROR') scan.summary.serverError = (scan.summary.serverError || 0) + 1;
 
       // Recalculate average response time
       const allLinks = Array.from(scanLinksMap.values());
@@ -235,7 +262,13 @@ export const cosmosService = {
     // Apply filtering
     if (filters.status) {
       const s = filters.status.toUpperCase();
-      links = links.filter((l) => l.status === s);
+      if (s === 'REDIRECT' || s === 'REDIRECTED') {
+        links = links.filter((l) => l.status === 'REDIRECT' || l.status === 'REDIRECTED');
+      } else if (s === 'ERRORS' || s === 'ERROR') {
+        links = links.filter((l) => l.status === 'TIMEOUT' || l.status === 'SERVER_ERROR');
+      } else {
+        links = links.filter((l) => l.status === s);
+      }
     }
 
     if (filters.type) {
@@ -265,16 +298,17 @@ export const cosmosService = {
       const actualCount = scanLinksMap.size;
       const allLinks = Array.from(scanLinksMap.values());
 
-      scan.totalLinks = actualCount;
+      scan.totalLinks = scan.totalLinks || actualCount;
       scan.processedLinks = actualCount;
-      scan.summary.totalFound = actualCount;
+      scan.summary.totalFound = scan.totalLinks || scan.summary.totalFound || actualCount;
       scan.summary.totalChecked = actualCount;
 
       const workingCount = allLinks.filter((l) => l.status === 'WORKING').length;
       scan.summary.working = workingCount;
       scan.summary.broken = allLinks.filter((l) => l.status === 'BROKEN').length;
-      scan.summary.redirected = allLinks.filter((l) => l.status === 'REDIRECT').length;
+      scan.summary.redirected = allLinks.filter((l) => l.status === 'REDIRECT' || l.status === 'REDIRECTED').length;
       scan.summary.timedOut = allLinks.filter((l) => l.status === 'TIMEOUT').length;
+      scan.summary.serverError = allLinks.filter((l) => l.status === 'SERVER_ERROR').length;
 
       scan.summary.healthScore = actualCount > 0 ? Math.round((workingCount / actualCount) * 100) : 100;
       scan.status = customStatus;

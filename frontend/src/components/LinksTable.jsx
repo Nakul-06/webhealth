@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ExternalLink, Copy, Check, Filter, Download, ArrowUpDown } from 'lucide-react';
+import { Search, ExternalLink, Copy, Check, Download } from 'lucide-react';
 
-export default function LinksTable({ links = [], onExportReport }) {
+export default function LinksTable({ links = [], onExport, onExportReport, isCompleted }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -17,21 +17,26 @@ export default function LinksTable({ links = [], onExportReport }) {
 
   const filteredLinks = useMemo(() => {
     return links.filter((link) => {
-      // Status filter
-      if (statusFilter !== 'ALL' && link.status !== statusFilter) {
-        return false;
+      // Unified Status Filter matching both backend and worker classifications
+      if (statusFilter === 'WORKING' && link.status !== 'WORKING') return false;
+      if (statusFilter === 'REDIRECT' && link.status !== 'REDIRECT' && link.status !== 'REDIRECTED') return false;
+      if (statusFilter === 'BROKEN' && link.status !== 'BROKEN') return false;
+      if (statusFilter === 'ERRORS' && link.status !== 'TIMEOUT' && link.status !== 'SERVER_ERROR') return false;
+
+      // Scope Filter (INTERNAL / EXTERNAL)
+      if (typeFilter !== 'ALL') {
+        const linkType = (link.type || '').toUpperCase();
+        if (linkType !== typeFilter) return false;
       }
-      // Type filter (INTERNAL/EXTERNAL)
-      if (typeFilter !== 'ALL' && link.type !== typeFilter) {
-        return false;
-      }
-      // Search term
+
+      // Keyword Search
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
         const matchesUrl = link.url?.toLowerCase().includes(q);
         const matchesAnchor = link.anchorText?.toLowerCase().includes(q);
         const matchesCode = link.statusCode?.toString().includes(q);
-        if (!matchesUrl && !matchesAnchor && !matchesCode) {
+        const matchesMsg = link.statusMessage?.toLowerCase().includes(q);
+        if (!matchesUrl && !matchesAnchor && !matchesCode && !matchesMsg) {
           return false;
         }
       }
@@ -50,6 +55,7 @@ export default function LinksTable({ links = [], onExportReport }) {
             {code || 200} Working
           </span>
         );
+      case 'REDIRECT':
       case 'REDIRECTED':
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
@@ -58,7 +64,7 @@ export default function LinksTable({ links = [], onExportReport }) {
         );
       case 'BROKEN':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
             {code || 404} Dead Link
           </span>
         );
@@ -71,7 +77,7 @@ export default function LinksTable({ links = [], onExportReport }) {
       case 'TIMEOUT':
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            Timeout
+            {code || 408} Timeout
           </span>
         );
       default:
@@ -87,11 +93,11 @@ export default function LinksTable({ links = [], onExportReport }) {
     return {
       all: links.length,
       working: links.filter((l) => l.status === 'WORKING').length,
+      redirected: links.filter((l) => l.status === 'REDIRECT' || l.status === 'REDIRECTED').length,
       broken: links.filter((l) => l.status === 'BROKEN').length,
-      redirected: links.filter((l) => l.status === 'REDIRECTED').length,
       errors: links.filter((l) => l.status === 'SERVER_ERROR' || l.status === 'TIMEOUT').length,
-      internal: links.filter((l) => l.type === 'INTERNAL').length,
-      external: links.filter((l) => l.type === 'EXTERNAL').length
+      internal: links.filter((l) => (l.type || '').toUpperCase() === 'INTERNAL').length,
+      external: links.filter((l) => (l.type || '').toUpperCase() === 'EXTERNAL').length
     };
   }, [links]);
 
@@ -114,7 +120,7 @@ export default function LinksTable({ links = [], onExportReport }) {
 
           {links.length > 0 && (
             <button
-              onClick={onExportReport}
+              onClick={onExport || onExportReport}
               className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium rounded-lg transition"
             >
               <Download className="w-3.5 h-3.5 text-blue-400" />
@@ -129,48 +135,48 @@ export default function LinksTable({ links = [], onExportReport }) {
             onClick={() => { setStatusFilter('ALL'); setPage(1); }}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
               statusFilter === 'ALL'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-700'
             }`}
           >
             All ({counts.all})
           </button>
           <button
-            onClick={() => { setStatusFilter('BROKEN'); setPage(1); }}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              statusFilter === 'BROKEN'
-                ? 'bg-red-600 text-white'
-                : 'bg-slate-900 text-red-400 hover:bg-red-950/30 border border-red-500/30'
-            }`}
-          >
-            Dead Links ({counts.broken})
-          </button>
-          <button
             onClick={() => { setStatusFilter('WORKING'); setPage(1); }}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
               statusFilter === 'WORKING'
-                ? 'bg-emerald-600 text-white'
+                ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-slate-900 text-emerald-400 hover:bg-emerald-950/30 border border-emerald-500/30'
             }`}
           >
             Working ({counts.working})
           </button>
           <button
-            onClick={() => { setStatusFilter('REDIRECTED'); setPage(1); }}
+            onClick={() => { setStatusFilter('REDIRECT'); setPage(1); }}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              statusFilter === 'REDIRECTED'
-                ? 'bg-sky-600 text-white'
+              statusFilter === 'REDIRECT'
+                ? 'bg-sky-600 text-white shadow-sm'
                 : 'bg-slate-900 text-sky-400 hover:bg-sky-950/30 border border-sky-500/30'
             }`}
           >
             Redirects ({counts.redirected})
           </button>
           <button
-            onClick={() => { setStatusFilter('SERVER_ERROR'); setPage(1); }}
+            onClick={() => { setStatusFilter('BROKEN'); setPage(1); }}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              statusFilter === 'SERVER_ERROR'
-                ? 'bg-amber-600 text-white'
-                : 'bg-slate-900 text-amber-400 hover:bg-amber-950/30 border border-amber-500/30'
+              statusFilter === 'BROKEN'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'bg-slate-900 text-red-400 hover:bg-red-950/30 border border-red-500/30'
+            }`}
+          >
+            Dead Links ({counts.broken})
+          </button>
+          <button
+            onClick={() => { setStatusFilter('ERRORS'); setPage(1); }}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              statusFilter === 'ERRORS'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'bg-slate-900 text-purple-400 hover:bg-purple-950/30 border border-purple-500/30'
             }`}
           >
             Errors ({counts.errors})
@@ -222,79 +228,82 @@ export default function LinksTable({ links = [], onExportReport }) {
                 </td>
               </tr>
             ) : (
-              paginatedLinks.map((link) => (
-                <tr key={link.id} className="hover:bg-slate-700/20 transition-colors">
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    {getStatusBadge(link.status, link.statusCode)}
-                  </td>
-                  <td className="py-3 px-4 max-w-md">
-                    <div className="truncate font-medium text-slate-100" title={link.url}>
-                      {link.url}
-                    </div>
-                    {link.anchorText && (
-                      <div className="text-[11px] text-slate-400 truncate mt-0.5 font-sans">
-                        Anchor: "{link.anchorText}"
+              paginatedLinks.map((link) => {
+                const isInternal = (link.type || '').toUpperCase() === 'INTERNAL';
+                return (
+                  <tr key={link.id} className="hover:bg-slate-700/20 transition-colors">
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {getStatusBadge(link.status, link.statusCode)}
+                    </td>
+                    <td className="py-3 px-4 max-w-md">
+                      <div className="truncate font-medium text-slate-100" title={link.url}>
+                        {link.url}
                       </div>
-                    )}
-                    {link.redirectUrl && (
-                      <div className="text-[11px] text-sky-400 truncate mt-0.5">
-                        ↳ Redirects to: {link.redirectUrl}
-                      </div>
-                    )}
-                    {link.statusMessage && link.status !== 'WORKING' && (
-                      <div className="text-[11px] text-red-400/90 truncate mt-0.5 font-sans">
-                        Reason: {link.statusMessage}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        link.type === 'INTERNAL'
-                          ? 'bg-slate-800 text-slate-300 border border-slate-700'
-                          : 'bg-indigo-950/40 text-indigo-300 border border-indigo-500/20'
-                      }`}
-                    >
-                      {link.type}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <span
-                      className={`font-semibold ${
-                        (link.responseTimeMs || 0) > 1500
-                          ? 'text-amber-400'
-                          : 'text-slate-300'
-                      }`}
-                    >
-                      {link.responseTimeMs || 0} ms
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end space-x-1.5">
-                      <button
-                        onClick={() => handleCopy(link.id, link.url)}
-                        className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded transition"
-                        title="Copy URL"
+                      {link.anchorText && (
+                        <div className="text-[11px] text-slate-400 truncate mt-0.5 font-sans">
+                          Anchor: "{link.anchorText}"
+                        </div>
+                      )}
+                      {link.redirectUrl && (
+                        <div className="text-[11px] text-sky-400 truncate mt-0.5">
+                          ↳ Redirects to: {link.redirectUrl}
+                        </div>
+                      )}
+                      {link.statusMessage && link.status !== 'WORKING' && (
+                        <div className="text-[11px] text-red-400/90 truncate mt-0.5 font-sans">
+                          Reason: {link.statusMessage}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          isInternal
+                            ? 'bg-slate-800 text-slate-300 border border-slate-700'
+                            : 'bg-indigo-950/40 text-indigo-300 border border-indigo-500/20'
+                        }`}
                       >
-                        {copiedId === link.id ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded transition"
-                        title="Open in new tab"
+                        {isInternal ? 'INTERNAL' : 'EXTERNAL'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span
+                        className={`font-semibold ${
+                          (link.responseTimeMs || link.latencyMs || 0) > 1500
+                            ? 'text-amber-400'
+                            : 'text-slate-300'
+                        }`}
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        {link.responseTimeMs || link.latencyMs || 0} ms
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end space-x-1.5">
+                        <button
+                          onClick={() => handleCopy(link.id, link.url)}
+                          className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded transition"
+                          title="Copy URL"
+                        >
+                          {copiedId === link.id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded transition"
+                          title="Open in new tab"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

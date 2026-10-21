@@ -1,14 +1,14 @@
 import React from 'react';
 
-export default function StatusDistributionBar({ summary }) {
-  const total = summary?.totalChecked || 0;
-  if (total === 0) return null;
+export default function StatusDistributionBar({ summary, totalChecked, links = [] }) {
+  const working = summary?.working ?? links.filter((l) => l.status === 'WORKING').length;
+  const redirected = summary?.redirected ?? links.filter((l) => l.status === 'REDIRECT' || l.status === 'REDIRECTED').length;
+  const broken = summary?.broken ?? links.filter((l) => l.status === 'BROKEN').length;
+  const serverError = summary?.serverError ?? links.filter((l) => l.status === 'SERVER_ERROR').length;
+  const timedOut = summary?.timedOut ?? links.filter((l) => l.status === 'TIMEOUT').length;
 
-  const working = summary?.working || 0;
-  const redirected = summary?.redirected || 0;
-  const broken = summary?.broken || 0;
-  const serverError = summary?.serverError || 0;
-  const timedOut = summary?.timedOut || 0;
+  const total = totalChecked || summary?.totalChecked || (working + redirected + broken + serverError + timedOut) || links.length || 0;
+  if (total === 0) return null;
 
   const pct = (val) => Math.round((val / total) * 100);
 

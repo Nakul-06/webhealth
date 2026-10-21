@@ -1,12 +1,32 @@
-import React from 'react';
-import { CheckCircle2, ArrowUpRight, AlertOctagon, XCircle, Clock, Link as LinkIcon } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { CheckCircle2, ArrowUpRight, AlertOctagon, XCircle, Link as LinkIcon } from 'lucide-react';
 
-export default function StatCards({ summary, counts }) {
+export default function StatCards({ summary, counts, links = [] }) {
+  const linkStats = useMemo(() => {
+    if (!links || links.length === 0) return null;
+    return {
+      working: links.filter((l) => l.status === 'WORKING').length,
+      redirected: links.filter((l) => l.status === 'REDIRECT' || l.status === 'REDIRECTED').length,
+      broken: links.filter((l) => l.status === 'BROKEN').length,
+      timedOut: links.filter((l) => l.status === 'TIMEOUT').length,
+      serverError: links.filter((l) => l.status === 'SERVER_ERROR').length,
+    };
+  }, [links]);
+
+  const totalChecked = summary?.totalChecked || counts?.totalChecked || links.length || 0;
+  const totalFound = Math.max(summary?.totalFound || 0, counts?.totalFound || 0, totalChecked, links.length);
+  const working = summary?.working ?? counts?.working ?? linkStats?.working ?? 0;
+  const redirected = summary?.redirected ?? counts?.redirected ?? linkStats?.redirected ?? 0;
+  const broken = summary?.broken ?? counts?.broken ?? linkStats?.broken ?? 0;
+  const serverError = summary?.serverError ?? linkStats?.serverError ?? 0;
+  const timedOut = summary?.timedOut ?? counts?.timedOut ?? linkStats?.timedOut ?? 0;
+  const errors = serverError + timedOut;
+
   const cards = [
     {
       title: 'Total Discovered',
-      value: summary?.totalFound || 0,
-      sub: `${summary?.totalChecked || 0} checked`,
+      value: totalFound,
+      sub: `${totalChecked} checked`,
       icon: LinkIcon,
       color: 'blue',
       border: 'border-blue-500/20',
@@ -15,7 +35,7 @@ export default function StatCards({ summary, counts }) {
     },
     {
       title: 'Working Links (2xx)',
-      value: summary?.working || 0,
+      value: working,
       sub: 'Status 200-299 OK',
       icon: CheckCircle2,
       color: 'emerald',
@@ -25,7 +45,7 @@ export default function StatCards({ summary, counts }) {
     },
     {
       title: 'Redirects (3xx)',
-      value: summary?.redirected || 0,
+      value: redirected,
       sub: 'Permanent & Temporary',
       icon: ArrowUpRight,
       color: 'sky',
@@ -35,7 +55,7 @@ export default function StatCards({ summary, counts }) {
     },
     {
       title: 'Dead Links (4xx)',
-      value: summary?.broken || 0,
+      value: broken,
       sub: '404 Not Found / 410 Gone',
       icon: XCircle,
       color: 'red',
@@ -45,8 +65,8 @@ export default function StatCards({ summary, counts }) {
     },
     {
       title: 'Server Errors / Timeouts',
-      value: (summary?.serverError || 0) + (summary?.timedOut || 0),
-      sub: `${summary?.serverError || 0} 5xx, ${summary?.timedOut || 0} timeouts`,
+      value: errors,
+      sub: serverError > 0 ? `${serverError} 5xx, ${timedOut} timeouts` : `${timedOut} request timeouts`,
       icon: AlertOctagon,
       color: 'amber',
       border: 'border-amber-500/20',

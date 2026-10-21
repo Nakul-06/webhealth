@@ -236,7 +236,7 @@ export default function App() {
         {scan && (
           <div className="space-y-6">
             {/* Stat Cards Breakdown */}
-            <StatCards summary={scan.summary} counts={report?.counts} />
+            <StatCards summary={scan.summary} counts={report?.counts} links={links} />
 
             {/* Health Score + Automated Recommendations Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -279,6 +279,7 @@ export default function App() {
             <StatusDistributionBar
               summary={scan.summary}
               totalChecked={totalVerified}
+              links={links}
             />
 
             {/* Verified Links Table */}

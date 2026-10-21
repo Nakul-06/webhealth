@@ -155,7 +155,9 @@ router.post('/scan', async (req, res) => {
           status: 'CHECKING_LINKS',
           statusText: `Discovered ${discoveredLinks.length} links. Enqueueing tasks into Azure Service Bus...`,
           totalLinks: discoveredLinks.length,
-          'summary.totalFound': discoveredLinks.length
+          summary: {
+            totalFound: discoveredLinks.length
+          }
         });
 
         logger.info('SERVICE_BUS', `Publishing ${discoveredLinks.length} tasks to Azure Service Bus...`, {
@@ -229,6 +231,10 @@ router.get('/scans/:id', async (req, res) => {
     const scan = await cosmosService.getScan(req.params.id);
     if (!scan) {
       return res.status(404).json({ error: 'Scan not found' });
+    }
+    if (scan.summary) {
+      scan.summary.totalFound = scan.summary.totalFound || scan.totalLinks || scan.processedLinks || 0;
+      scan.summary.totalChecked = scan.summary.totalChecked || scan.processedLinks || 0;
     }
     res.json(scan);
   } catch (err) {
