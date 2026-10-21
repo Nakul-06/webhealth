@@ -129,16 +129,18 @@ router.post('/scan', async (req, res) => {
         const crawlResult = await crawler.crawl(scanData.targetUrl);
         const discoveredLinks = crawlResult.links;
 
+        // If no sub-links were found, verify the root target URL itself so the scan is never empty
         if (discoveredLinks.length === 0) {
-          logger.warn('CRAWLER', `No links found on website: ${scanData.targetUrl}`);
-          await cosmosService.updateScan(scanId, {
-            status: 'COMPLETED',
-            statusText: 'No links found to verify on target website.',
-            totalLinks: 0,
-            processedLinks: 0,
-            completedAt: new Date().toISOString()
+          logger.info('CRAWLER', `No sub-links extracted. Adding root URL to check: ${scanData.targetUrl}`);
+          discoveredLinks.push({
+            id: uuidv4(),
+            url: scanData.targetUrl,
+            rawHref: scanData.targetUrl,
+            anchorText: 'Root Endpoint',
+            parentUrl: scanData.targetUrl,
+            type: 'INTERNAL',
+            depth: 1
           });
-          return;
         }
 
         // Set totalLinks and update state to CHECKING_LINKS

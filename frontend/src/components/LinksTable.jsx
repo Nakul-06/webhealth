@@ -108,7 +108,7 @@ export default function LinksTable({ links = [], onExportReport }) {
               </span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Individual link availability, response latency, and HTTP status codes verified by Cloud Run Workers.
+              Individual link availability, response latency, and HTTP status codes verified by Azure Cloud Workers.
             </p>
           </div>
 

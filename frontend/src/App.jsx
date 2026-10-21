@@ -126,45 +126,27 @@ export default function App() {
       />
 
       {/* Cloud Environment Mode Banner */}
-      {systemStatus && (
-        <div
-          className={`border-b px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 ${
-            systemStatus.isMock
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-              : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-          }`}
-        >
-          <div className="flex items-center space-x-2">
-            {systemStatus.isMock ? (
-              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            ) : (
-              <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            )}
-            <span className="font-bold tracking-wide">
-              {systemStatus.isMock
-                ? 'SANDBOX EMULATION MODE (OFFLINE DEMO)'
-                : 'LIVE MICROSOFT AZURE CLOUD (PRODUCTION)'}
-            </span>
-            <span className="opacity-80 hidden md:inline">
-              {systemStatus.isMock
-                ? '— In-memory NoSQL document store & local parallel worker active for instant local testing.'
-                : `— Connected to Azure Service Bus (${systemStatus.services?.messageQueue?.queue}) & Cosmos DB (webhealth-db).`}
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2 font-mono text-[11px]">
-            <span
-              className={`px-2 py-0.5 rounded border ${
-                systemStatus.isMock
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                  : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-              }`}
-            >
-              Workers: {systemStatus.services?.processingWorkers?.name || 'Azure Functions'}
-            </span>
-          </div>
+      <div className="bg-sky-950/40 border-b border-sky-800/40 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 text-sky-200">
+        <div className="flex items-center space-x-2">
+          <ShieldCheck className="w-4 h-4 text-sky-400 flex-shrink-0" />
+          <span className="font-bold tracking-wide text-white">MICROSOFT AZURE CLOUD (PRODUCTION)</span>
+          <span className="opacity-80 hidden md:inline">
+            — Deployed on Azure App Service & connected to Azure Cosmos DB (<code>webhealth-db</code>).
+          </span>
         </div>
-      )}
+
+        <div className="flex items-center space-x-2 font-mono text-[11px]">
+          <span className="px-2 py-0.5 rounded bg-sky-900/60 border border-sky-700/60 text-sky-300">
+            Engine: Azure App Service
+          </span>
+          <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/60 text-emerald-300">
+            Cosmos DB: Online
+          </span>
+          <span className="px-2 py-0.5 rounded bg-indigo-950/60 border border-indigo-700/60 text-indigo-300">
+            Workers: Azure Cloud Workers
+          </span>
+        </div>
+      </div>
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

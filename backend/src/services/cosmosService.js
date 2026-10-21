@@ -73,11 +73,14 @@ export const cosmosService = {
     memoryCosmosStore.scans.set(scanId, document);
     memoryCosmosStore.links.set(scanId, new Map());
 
-    // Asynchronously persist to live Cosmos DB if available
+    // Persist to live Cosmos DB if available
     if (liveScansContainer) {
-      liveScansContainer.items.upsert(document).catch((err) => {
+      try {
+        await liveScansContainer.items.upsert(document);
+        logger.info('COSMOS_DB', `Successfully saved scan ${scanId} to live Azure Cosmos DB container 'scans'.`);
+      } catch (err) {
         logger.warn('COSMOS_DB', `Live Cosmos DB scan creation upsert failed: ${err.message}`);
-      });
+      }
     }
 
     logger.info('COSMOS_DB', `Scan document created in container 'scans': id=${scanId}`, {
@@ -116,9 +119,11 @@ export const cosmosService = {
     memoryCosmosStore.scans.set(scanId, updated);
 
     if (liveScansContainer) {
-      liveScansContainer.items.upsert(updated).catch((err) => {
+      try {
+        await liveScansContainer.items.upsert(updated);
+      } catch (err) {
         logger.warn('COSMOS_DB', `Cosmos DB update failed: ${err.message}`);
-      });
+      }
     }
 
     return updated;
@@ -182,15 +187,20 @@ export const cosmosService = {
 
     // Persist to live Cosmos DB if connected
     if (liveLinksContainer) {
-      liveLinksContainer.items.upsert(linkDocument).catch((err) => {
+      try {
+        await liveLinksContainer.items.upsert(linkDocument);
+        logger.info('COSMOS_DB', `Successfully saved link ${linkDocument.url} to live Azure Cosmos DB container 'links'.`);
+      } catch (err) {
         logger.warn('COSMOS_DB', `Cosmos DB link upsert failed: ${err.message}`);
-      });
+      }
     }
 
     if (liveScansContainer && scan) {
-      liveScansContainer.items.upsert(scan).catch((err) => {
+      try {
+        await liveScansContainer.items.upsert(scan);
+      } catch (err) {
         logger.warn('COSMOS_DB', `Cosmos DB scan counter upsert failed: ${err.message}`);
-      });
+      }
     }
 
     return linkDocument;
@@ -241,6 +251,27 @@ export const cosmosService = {
     }
 
     return links;
+  },
+
+  /**
+   * List recent scans from Azure Cosmos DB
+   */
+  async listScans(limit = 10) {
+    if (liveScansContainer) {
+      try {
+        const querySpec = {
+          query: 'SELECT TOP @limit * FROM c ORDER BY c._ts DESC',
+          parameters: [{ name: '@limit', value: limit }]
+        };
+        const { resources } = await liveScansContainer.items.query(querySpec).fetchAll();
+        if (resources && resources.length > 0) {
+          return resources;
+        }
+      } catch (err) {
+        // Fall back to memory
+      }
+    }
+    return Array.from(memoryCosmosStore.scans.values()).slice(-limit).reverse();
   }
 };
 
